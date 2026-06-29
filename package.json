@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "dev": "nodemon server/index.js"
+    "dev": "nodemon server/index.js",
+    "build": "node scripts/inject-env.js"
   },
   "keywords": [],
   "author": "",

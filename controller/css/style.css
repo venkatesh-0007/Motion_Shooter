@@ -1,0 +1,220 @@
+:root {
+  --bg-color: #0b0d19;
+  --panel-bg: rgba(22, 28, 45, 0.6);
+  --border-color: rgba(0, 242, 254, 0.2);
+  --glow-cyan: #00f2fe;
+  --glow-pink: #ff007f;
+  --text-primary: #ffffff;
+  --text-muted: #7e8b9b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+/* Header Status Bar */
+.status-bar {
+  background: rgba(11, 13, 25, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 15px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10;
+  height: 64px;
+}
+
+.logo {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 14px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #00c6ff, #00f2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
+.status {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
+}
+
+.status.waiting {
+  color: #ff9f43;
+  border: 1px solid rgba(255, 159, 67, 0.3);
+  box-shadow: 0 0 10px rgba(255, 159, 67, 0.1);
+}
+
+.status.connected {
+  color: #2ed573;
+  border: 1px solid rgba(46, 213, 115, 0.3);
+  box-shadow: 0 0 10px rgba(46, 213, 115, 0.2);
+  content: "Connected ✅";
+}
+
+/* Active touch area representing the trigger pad */
+.touch-pad {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  touch-action: none;
+  background: radial-gradient(circle at center, rgba(16, 24, 48, 1) 0%, rgba(7, 9, 21, 1) 100%);
+  transition: background-color 0.1s ease;
+}
+
+/* Flash effect on shot trigger */
+.touch-pad.firing {
+  background: radial-gradient(circle at center, rgba(255, 0, 127, 0.4) 0%, rgba(7, 9, 21, 1) 100%);
+}
+
+.hud-center {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  pointer-events: none; /* Let events fall through to the touch-pad */
+}
+
+/* Recenter Button */
+.recenter-btn {
+  pointer-events: auto; /* Re-enable pointer events for the button */
+  background: linear-gradient(135deg, rgba(22, 28, 45, 0.9), rgba(11, 13, 25, 0.95));
+  border: 2px solid var(--glow-cyan);
+  color: var(--text-primary);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 20px 40px;
+  border-radius: 50px;
+  cursor: pointer;
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.3), inset 0 0 15px rgba(0, 242, 254, 0.1);
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recenter-btn:active {
+  transform: scale(0.92);
+  border-color: var(--glow-pink);
+  box-shadow: 0 0 25px rgba(255, 0, 127, 0.5), inset 0 0 15px rgba(255, 0, 127, 0.2);
+}
+
+.instruction {
+  font-size: 13px;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+/* Overlay for iOS Permission Authorization */
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(7, 9, 21, 0.9);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  transition: opacity 0.3s ease;
+}
+
+.overlay.hidden {
+  display: none !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.overlay-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 15px 35px rgba(0, 242, 254, 0.15);
+  border-radius: 24px;
+  padding: 30px;
+  margin: 20px;
+  max-width: 400px;
+  text-align: center;
+}
+
+.overlay-card h2 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  margin-bottom: 15px;
+  color: var(--glow-cyan);
+}
+
+.overlay-card p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 25px;
+}
+
+.action-btn {
+  background: linear-gradient(90deg, #00c6ff, #00f2fe);
+  border: none;
+  color: #0b0d19;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 15px 30px;
+  border-radius: 30px;
+  cursor: pointer;
+  width: 100%;
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+  transition: all 0.2s ease;
+}
+
+.action-btn:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 5px rgba(0, 242, 254, 0.2);
+}
+
+.debug-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #00f2fe;
+  color: #ff007f;
+  padding: 12px;
+  font-family: monospace;
+  font-size: 11px;
+  border-radius: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.3;
+}

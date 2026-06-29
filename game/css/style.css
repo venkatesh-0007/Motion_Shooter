@@ -1,0 +1,317 @@
+:root {
+  --bg-color: #05070f;
+  --panel-bg: rgba(13, 17, 33, 0.7);
+  --border-glow: rgba(0, 242, 254, 0.25);
+  --border-active: rgba(0, 242, 254, 0.7);
+  --glow-cyan: #00f2fe;
+  --glow-pink: #ff007f;
+  --text-primary: #ffffff;
+  --text-muted: #8c9ba5;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* LOBBY SCREEN / PAIRING FLOW */
+.lobby-screen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: radial-gradient(circle at center, #10152b 0%, #05070f 100%);
+  z-index: 100;
+}
+
+.lobby-card {
+  background: var(--panel-bg);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glow);
+  box-shadow: 0 0 40px rgba(0, 242, 254, 0.15), inset 0 0 20px rgba(0, 242, 254, 0.05);
+  border-radius: 24px;
+  padding: 40px;
+  width: 480px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 30px;
+}
+
+.lobby-card .header h1 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 4px;
+  background: linear-gradient(90deg, #00c6ff, #00f2fe);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 10px;
+  text-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+}
+
+.status-badge {
+  font-size: 13px;
+  font-weight: 600;
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 30px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.status-badge.waiting {
+  background: rgba(255, 159, 67, 0.1);
+  color: #ff9f43;
+  border: 1px solid rgba(255, 159, 67, 0.3);
+  box-shadow: 0 0 10px rgba(255, 159, 67, 0.1);
+  animation: pulse 2s infinite ease-in-out;
+}
+
+.qr-container {
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.qr-container canvas {
+  display: block;
+}
+
+.instructions h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  letter-spacing: 1px;
+  margin-bottom: 15px;
+  color: var(--glow-cyan);
+}
+
+.instructions p {
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.8;
+  text-align: left;
+  max-width: 320px;
+  margin: 0 auto;
+}
+
+.url-hint {
+  margin-top: 15px !important;
+  font-size: 12px !important;
+  color: var(--text-muted) !important;
+  text-align: center !important;
+  word-break: break-all;
+}
+
+.url-hint span {
+  color: var(--glow-cyan);
+  font-family: monospace;
+}
+
+/* GAMEPLAY VIEWPORT */
+.game-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+#game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+
+/* TOP HUD OVERLAY */
+.hud {
+  position: absolute;
+  top: 25px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 30px;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.hud-item {
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glow);
+  padding: 12px 24px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 140px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.hud-item .label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 1.5px;
+  margin-bottom: 4px;
+  font-weight: 700;
+}
+
+.hud-item .value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.score-container .value {
+  color: var(--glow-cyan);
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.4);
+}
+
+.success-glow {
+  color: #2ed573;
+  text-shadow: 0 0 10px rgba(46, 213, 115, 0.4);
+}
+
+/* FLOATING SETTINGS/CALIBRATION PANEL */
+.settings-panel {
+  position: absolute;
+  bottom: 25px;
+  right: 25px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--border-glow);
+  border-radius: 16px;
+  padding: 20px;
+  width: 280px;
+  z-index: 10;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.settings-panel h3 {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--glow-cyan);
+  border-bottom: 1px solid var(--border-glow);
+  padding-bottom: 10px;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.setting-item label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.slider-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.slider-wrapper input[type="range"] {
+  flex: 1;
+  -webkit-appearance: none;
+  background: rgba(255, 255, 255, 0.1);
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background: var(--glow-cyan);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 6px var(--glow-cyan);
+  transition: all 0.1s ease;
+}
+
+.slider-wrapper input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.slider-val {
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--glow-cyan);
+  width: 32px;
+  text-align: right;
+}
+
+.setting-item.hint {
+  margin-top: 5px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.setting-item.hint strong {
+  color: var(--text-primary);
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+.debug-overlay {
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid #ff007f;
+  color: #00f2fe;
+  padding: 15px;
+  font-family: monospace;
+  font-size: 12px;
+  border-radius: 8px;
+  z-index: 9999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  line-height: 1.4;
+}

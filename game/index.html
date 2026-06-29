@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Shooter Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/game/css/style.css">
+</head>
+<body>
+  <!-- Pairing lobby overlay -->
+  <div id="lobby-screen" class="lobby-screen">
+    <div class="lobby-card">
+      <div class="header">
+        <h1>MOTION SHOOTER</h1>
+        <div class="status-badge waiting">Waiting for controller...</div>
+      </div>
+      
+      <div class="qr-container">
+        <img id="qr-image" alt="Pairing QR Code">
+      </div>
+
+      <div class="instructions">
+        <h3>Connect Your Phone</h3>
+        <p>1. Scan the QR code with your mobile camera.</p>
+        <p>2. Ensure both devices are on the same Wi-Fi network.</p>
+        <p class="url-hint">Or browse to: <span id="controller-url">Loading...</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Arena Viewport -->
+  <div id="game-container" class="game-container hidden">
+    <!-- Active gaming canvas -->
+    <canvas id="game-canvas"></canvas>
+
+    <!-- Top HUD Overlay -->
+    <div class="hud">
+      <div class="hud-item score-container">
+        <span class="label">SCORE</span>
+        <span id="score-val" class="value">000</span>
+      </div>
+      <div class="hud-item controller-status">
+        <span class="label">CONTROLLER</span>
+        <span class="value success-glow">CONNECTED ✅</span>
+      </div>
+    </div>
+
+    <!-- Calibration / Settings controls in a premium panel -->
+    <div class="settings-panel">
+      <h3>CALIBRATION</h3>
+      <div class="setting-item">
+        <label for="sens-slider">Sensitivity</label>
+        <div class="slider-wrapper">
+          <input type="range" id="sens-slider" min="0.5" max="8" step="0.1" value="3.5">
+          <span id="sens-val" class="slider-val">3.5</span>
+        </div>
+      </div>
+      <div class="setting-item">
+        <label for="smooth-slider">Smoothing</label>
+        <div class="slider-wrapper">
+          <input type="range" id="smooth-slider" min="0.01" max="0.5" step="0.01" value="0.15">
+          <span id="smooth-val" class="slider-val">0.15</span>
+        </div>
+      </div>
+      <div class="setting-item">
+        <label for="deadzone-slider">Dead Zone (°)</label>
+        <div class="slider-wrapper">
+          <input type="range" id="deadzone-slider" min="0" max="3" step="0.1" value="0.3">
+          <span id="deadzone-val" class="slider-val">0.3</span>
+        </div>
+      </div>
+      <div class="setting-item hint">
+        <p>Tap <strong>Recenter</strong> on phone to align target</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Temporary Debug Mode Overlay -->
+  <div id="debug-overlay" class="debug-overlay">
+    <div><strong>[DEBUG OVERLAY]</strong></div>
+    <div>Packets Received: <span id="debug-packets-recv">0</span></div>
+    <div>Latest Alpha: <span id="debug-yaw">-</span></div>
+    <div>Latest Beta: <span id="debug-pitch">-</span></div>
+    <div>Latest Gamma: <span id="debug-roll">-</span></div>
+    <div>Cursor X: <span id="debug-x">-</span></div>
+    <div>Cursor Y: <span id="debug-y">-</span></div>
+    <div>Connected: <span id="debug-connected">No</span></div>
+    <div>Recv Shoot: <span id="debug-recv-shoot">No</span></div>
+  </div>
+
+  <script type="module" src="/game/js/app.js"></script>
+</body>
+</html>

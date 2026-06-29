@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Motion Shooter Controller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Outfit:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/controller/css/style.css">
+</head>
+<body>
+  <!-- Status header -->
+  <header class="status-bar">
+    <div class="logo">MOTION SHOOTER</div>
+    <div id="status-indicator" class="status waiting">Waiting for connection...</div>
+  </header>
+
+  <!-- Main interactive touchpad -->
+  <main id="touch-pad" class="touch-pad">
+    <div class="hud-center">
+      <button id="recenter-btn" class="recenter-btn">
+        <span class="icon">🎯</span> Recenter
+      </button>
+      <p class="instruction">Tap anywhere else to SHOOT</p>
+    </div>
+  </main>
+
+  <!-- iOS Permission Overlay -->
+  <div id="permission-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>Sensors Access Required</h2>
+      <p>This controller uses your device's orientation sensor to aim the game crosshair. Please tap the button below to authorize access.</p>
+      <button id="enable-sensors-btn" class="action-btn">Enable Sensors</button>
+    </div>
+  </div>
+
+  <!-- Temporary Debug Mode Overlay -->
+  <div id="debug-overlay" class="debug-overlay">
+    <div><strong>[DEBUG OVERLAY]</strong></div>
+    <div>Alpha (Yaw): <span id="debug-alpha">-</span></div>
+    <div>Beta (Pitch): <span id="debug-beta">-</span></div>
+    <div>Gamma (Roll): <span id="debug-gamma">-</span></div>
+    <div>Orientation Packets Sent: <span id="debug-sending">0</span></div>
+    <div>Connected: <span id="debug-connected">No</span></div>
+    <div id="secure-context-warning" style="color: #ff3838; font-weight: bold; display: none;">⚠️ Insecure HTTP Context</div>
+  </div>
+
+  <script type="module" src="/controller/js/app.js"></script>
+</body>
+</html>

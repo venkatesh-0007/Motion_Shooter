@@ -28,6 +28,29 @@ export const WS_URL = "${wsUrl}";
   
   fs.writeFileSync(configPath, staticConfig.trim());
   console.log(`Successfully injected BACKEND_URL: ${backendUrl}`);
+
+  // Vercel expects a 'public' output directory by default when a build script is present.
+  // We will copy all the static folders into 'public' so Vercel can serve them.
+  const publicDir = path.join(__dirname, '..', 'public');
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir);
+  }
+  
+  const foldersToCopy = ['game', 'controller', 'shared', 'sdk'];
+  for (const folder of foldersToCopy) {
+    const src = path.join(__dirname, '..', folder);
+    const dest = path.join(publicDir, folder);
+    if (fs.existsSync(src)) {
+      fs.cpSync(src, dest, { recursive: true });
+    }
+  }
+
+  // Create a root index.html to automatically redirect visitors to the game
+  const rootIndex = path.join(publicDir, 'index.html');
+  fs.writeFileSync(rootIndex, '<meta http-equiv="refresh" content="0; url=/game/" />');
+  
+  console.log('Successfully prepared the "public" directory for Vercel deployment.');
+
 } else {
   console.log('Not running in Vercel, skipping environment injection.');
 }

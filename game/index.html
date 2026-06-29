@@ -23,7 +23,7 @@
       </div>
 
       <div class="instructions">
-        <h3>Connect Your Phone</h3>
+        <h3>Session ID: <span id="session-id-display">------</span></h3>
         <p>1. Scan the QR code with your mobile camera.</p>
         <p>2. Ensure both devices are on the same Wi-Fi network.</p>
         <p class="url-hint">Or browse to: <span id="controller-url">Loading...</span></p>
@@ -78,18 +78,7 @@
     </div>
   </div>
 
-  <!-- Temporary Debug Mode Overlay -->
-  <div id="debug-overlay" class="debug-overlay">
-    <div><strong>[DEBUG OVERLAY]</strong></div>
-    <div>Packets Received: <span id="debug-packets-recv">0</span></div>
-    <div>Latest Alpha: <span id="debug-yaw">-</span></div>
-    <div>Latest Beta: <span id="debug-pitch">-</span></div>
-    <div>Latest Gamma: <span id="debug-roll">-</span></div>
-    <div>Cursor X: <span id="debug-x">-</span></div>
-    <div>Cursor Y: <span id="debug-y">-</span></div>
-    <div>Connected: <span id="debug-connected">No</span></div>
-    <div>Recv Shoot: <span id="debug-recv-shoot">No</span></div>
-  </div>
+
 
   <script type="module" src="/game/js/app.js"></script>
 </body>

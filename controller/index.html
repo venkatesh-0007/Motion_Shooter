@@ -35,16 +35,17 @@
     </div>
   </div>
 
-  <!-- Temporary Debug Mode Overlay -->
-  <div id="debug-overlay" class="debug-overlay">
-    <div><strong>[DEBUG OVERLAY]</strong></div>
-    <div>Alpha (Yaw): <span id="debug-alpha">-</span></div>
-    <div>Beta (Pitch): <span id="debug-beta">-</span></div>
-    <div>Gamma (Roll): <span id="debug-gamma">-</span></div>
-    <div>Orientation Packets Sent: <span id="debug-sending">0</span></div>
-    <div>Connected: <span id="debug-connected">No</span></div>
-    <div id="secure-context-warning" style="color: #ff3838; font-weight: bold; display: none;">⚠️ Insecure HTTP Context</div>
+  <!-- Join by Code Overlay -->
+  <div id="join-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>Join Session</h2>
+      <p>Enter the 6-character session ID displayed on the game screen.</p>
+      <input type="text" id="join-code-input" class="code-input" placeholder="AB7XQ2" maxlength="6" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
+      <button id="join-session-btn" class="action-btn">Join</button>
+    </div>
   </div>
+
+
 
   <script type="module" src="/controller/js/app.js"></script>
 </body>

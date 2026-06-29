@@ -1,4 +1,5 @@
 import { MSG_TYPES } from '/shared/constants.js';
+import { WS_URL } from '/shared/config.js';
 
 /**
  * GameConnection manages the WebSocket lifecycle for the laptop game client.
@@ -11,7 +12,8 @@ export class GameConnection {
    * @param {function} onShoot Callback triggered when a shoot command is received.
    * @param {function} onRecenter Callback triggered when a recenter command is received.
    */
-  constructor(onStatusChange, onOrientation, onShoot, onRecenter) {
+  constructor(sessionId, onStatusChange, onOrientation, onShoot, onRecenter) {
+    this.sessionId = sessionId;
     this.onStatusChange = onStatusChange;
     this.onOrientation = onOrientation;
     this.onShoot = onShoot;
@@ -26,21 +28,16 @@ export class GameConnection {
    */
   connect() {
     this.isPurposelyClosed = false;
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.host;
-    const wsUrl = `${protocol}//${host}`;
-
     if (this.socket) {
       try {
         this.socket.close();
       } catch (e) {}
     }
 
-    this.socket = new WebSocket(wsUrl);
+    this.socket = new WebSocket(WS_URL);
 
     this.socket.onopen = () => {
-      console.log('Game socket opened. Registering as game client...');
-      this.send({ type: MSG_TYPES.REGISTER_GAME });
+      this.send({ type: MSG_TYPES.REGISTER_GAME, sessionId: this.sessionId });
     };
 
     this.socket.onmessage = (event) => {
@@ -72,7 +69,7 @@ export class GameConnection {
 
     this.socket.onclose = () => {
       if (!this.isPurposelyClosed) {
-        console.log('Game socket closed. Reconnecting in 2s...');
+
         this.onStatusChange('DISCONNECTED');
         this.scheduleReconnect();
       }

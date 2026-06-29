@@ -1,4 +1,5 @@
 import { CONNECTION_STATES } from '/shared/constants.js';
+import { BACKEND_URL } from '/shared/config.js';
 import { GameConnection } from './connection.js';
 
 // DOM Elements
@@ -7,6 +8,13 @@ const gameContainer = document.getElementById('game-container');
 const qrImage = document.getElementById('qr-image');
 const controllerUrlSpan = document.getElementById('controller-url');
 const scoreVal = document.getElementById('score-val');
+const sessionIdDisplay = document.getElementById('session-id-display');
+
+// Session generation
+const sessionId = Math.random().toString(36).substring(2, 8).toUpperCase();
+if (sessionIdDisplay) {
+  sessionIdDisplay.textContent = sessionId;
+}
 
 // Calibration inputs
 const sensSlider = document.getElementById('sens-slider');
@@ -65,7 +73,7 @@ function getAngleDifference(current, reference) {
  * Renders the QR code for mobile controller access.
  */
 async function generateLobbyQR() {
-  const controllerUrl = `${window.location.protocol}//${window.location.host}/controller/`;
+  const controllerUrl = `${BACKEND_URL}/controller/?session=${sessionId}`;
   controllerUrlSpan.textContent = controllerUrl;
 
   try {
@@ -83,15 +91,11 @@ async function generateLobbyQR() {
  * Handles connection status events.
  * Swaps screens and configures canvas.
  */
-let orientationPacketsRecv = 0;
-let shootCount = 0;
+
 
 function handleStatusChange(state) {
   const isConnectedVal = state === CONNECTION_STATES.CONNECTED;
-  const debugConnectedEl = document.getElementById('debug-connected');
-  if (debugConnectedEl) {
-    debugConnectedEl.textContent = isConnectedVal ? 'Yes' : 'No';
-  }
+
 
   if (isConnectedVal) {
     isConnected = true;
@@ -107,7 +111,7 @@ function handleStatusChange(state) {
     lobbyScreen.classList.remove('hidden');
     gameContainer.classList.add('hidden');
   }
-  console.log(`[DESKTOP STATUS] WebSocket Connection State: ${state}`);
+
 }
 
 /**
@@ -118,18 +122,7 @@ function recenter() {
     const prevReference = referenceOrientation ? { ...referenceOrientation } : null;
     referenceOrientation = { ...currentOrientation };
 
-    console.log('=== DESKTOP RECENTER SIGNAL RECEIVED ===');
-    console.log('Current Orientation Alpha:', currentOrientation.alpha, 'Beta:', currentOrientation.beta, 'Gamma:', currentOrientation.gamma);
-    console.log('Stored Baseline (Reference) Alpha:', referenceOrientation.alpha, 'Beta:', referenceOrientation.beta, 'Gamma:', referenceOrientation.gamma);
-    if (prevReference) {
-      console.log('Delta from Previous Alpha:', getAngleDifference(currentOrientation.alpha, prevReference.alpha), 'Beta:', getAngleDifference(currentOrientation.beta, prevReference.beta));
-    }
-    console.log('========================================');
 
-    const recvShootEl = document.getElementById('debug-recv-shoot');
-    if (recvShootEl) {
-      recvShootEl.textContent = `Recenter Recv (${new Date().toLocaleTimeString()})`;
-    }
   } else {
     console.warn('[DESKTOP RECENTER] Recenter requested, but currentOrientation is null.');
   }
@@ -139,21 +132,7 @@ function recenter() {
  * Handles incoming WebSocket device orientation packets.
  */
 function handleOrientation(alpha, beta, gamma) {
-  orientationPacketsRecv++;
-  if (orientationPacketsRecv % 60 === 0) {
-    console.log(`[DESKTOP ORIENTATION] Recv raw packet #${orientationPacketsRecv}. Alpha: ${alpha}, Beta: ${beta}, Gamma: ${gamma}`);
-  }
 
-  // Update debug elements
-  const recvPacketsEl = document.getElementById('debug-packets-recv');
-  const yawEl = document.getElementById('debug-yaw');
-  const pitchEl = document.getElementById('debug-pitch');
-  const rollEl = document.getElementById('debug-roll');
-
-  if (recvPacketsEl) recvPacketsEl.textContent = orientationPacketsRecv;
-  if (yawEl) yawEl.textContent = alpha.toFixed(2);
-  if (pitchEl) pitchEl.textContent = beta.toFixed(2);
-  if (rollEl) rollEl.textContent = gamma.toFixed(2);
 
   currentOrientation = { alpha, beta, gamma };
 
@@ -204,13 +183,7 @@ function spawnParticles(x, y, color, count = 12) {
 function handleShoot() {
   if (!isConnected) return;
 
-  shootCount++;
-  console.log(`[DESKTOP SHOOT] Recv shoot trigger #${shootCount}`);
-  
-  const recvShootEl = document.getElementById('debug-recv-shoot');
-  if (recvShootEl) {
-    recvShootEl.textContent = `Yes (Trigger #${shootCount})`;
-  }
+
 
   // Apply expansion pulse on crosshair
   crosshair.shootPulse = 1.0;
@@ -243,9 +216,7 @@ function handleShoot() {
     }
   }
 
-  if (!targetHit) {
-    console.log('Miss!');
-  }
+
 }
 
 /**
@@ -301,11 +272,7 @@ function gameLoop(timestamp) {
   // crosshair.x += (crosshair.targetX - crosshair.x) * smoothing;
   // crosshair.y += (crosshair.targetY - crosshair.y) * smoothing;
 
-  // Update debug coordinates HUD
-  const debugXEl = document.getElementById('debug-x');
-  const debugYEl = document.getElementById('debug-y');
-  if (debugXEl) debugXEl.textContent = crosshair.x.toFixed(0);
-  if (debugYEl) debugYEl.textContent = crosshair.y.toFixed(0);
+
 
   // Decay shoot pulse animation scale
   if (crosshair.shootPulse > 0) {
@@ -443,7 +410,7 @@ function drawCrosshair() {
 }
 
 // Initialise Connection
-const connection = new GameConnection(handleStatusChange, handleOrientation, handleShoot, recenter);
+const connection = new GameConnection(sessionId, handleStatusChange, handleOrientation, handleShoot, recenter);
 connection.connect();
 
 // Trigger QR setup

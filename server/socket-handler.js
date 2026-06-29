@@ -1,13 +1,18 @@
 import { MSG_TYPES, CONNECTION_STATES } from '../shared/constants.js';
 
-let gameSocket = null;
-let controllerSocket = null;
-let orientationPacketCount = 0;
-let packetsForwarded = 0;
+const sessions = {};
+
+function getSession(id) {
+  if (!id) return null;
+  if (!sessions[id]) {
+    sessions[id] = { gameSocket: null, controllers: new Set() };
+  }
+  return sessions[id];
+}
 
 /**
  * Handles incoming WebSocket connection messages and event routing.
- * Manages game-to-controller pairing and ensures statuses are synchronised.
+ * Manages game-to-controller pairing and ensures statuses are synchronised per session.
  * @param {WebSocket} ws The connected WebSocket instance.
  */
 export function handleSocketConnection(ws) {
@@ -19,58 +24,60 @@ export function handleSocketConnection(ws) {
 
       switch (message.type) {
         case MSG_TYPES.REGISTER_GAME:
-          console.log('Game client registered');
-          if (gameSocket && gameSocket !== ws) {
-            gameSocket.close();
+          if (message.sessionId) {
+            console.log(`Game Connected to session ${message.sessionId}`);
+            const session = getSession(message.sessionId);
+            if (session.gameSocket && session.gameSocket !== ws) {
+              session.gameSocket.close();
+            }
+            session.gameSocket = ws;
+            registeredAs = 'game';
+            ws.sessionId = message.sessionId;
+            sendStatusUpdates(session);
           }
-          gameSocket = ws;
-          registeredAs = 'game';
-          sendStatusUpdates();
           break;
 
         case MSG_TYPES.REGISTER_CONTROLLER:
-          console.log('Controller client registered');
-          if (controllerSocket && controllerSocket !== ws) {
-            controllerSocket.close();
+          if (message.sessionId) {
+            console.log(`Controller Connected to session ${message.sessionId}`);
+            const session = getSession(message.sessionId);
+            session.controllers.add(ws);
+            registeredAs = 'controller';
+            ws.sessionId = message.sessionId;
+            sendStatusUpdates(session);
           }
-          controllerSocket = ws;
-          registeredAs = 'controller';
-          sendStatusUpdates();
           break;
 
         case MSG_TYPES.ORIENTATION:
           // Forward orientation events directly to the laptop game client
-          orientationPacketCount++;
-          let forwarded = false;
-          
-          if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
-            gameSocket.send(JSON.stringify({
-              type: MSG_TYPES.ORIENTATION,
-              payload: message.payload
-            }));
-            packetsForwarded++;
-            forwarded = true;
-          }
-          
-          if (orientationPacketCount % 60 === 0) {
-            console.log(`Packets Received: ${orientationPacketCount}`);
-            console.log(`Packets Forwarded: ${packetsForwarded}`);
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const gameSocket = sessions[ws.sessionId].gameSocket;
+            if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+              gameSocket.send(JSON.stringify({
+                type: MSG_TYPES.ORIENTATION,
+                payload: message.payload
+              }));
+            }
           }
           break;
 
         case MSG_TYPES.SHOOT:
-          console.log('[SERVER SHOOT] Received SHOOT trigger from controller, forwarding to game');
           // Forward shoot events to the laptop game client
-          if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
-            gameSocket.send(JSON.stringify({ type: MSG_TYPES.SHOOT }));
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const gameSocket = sessions[ws.sessionId].gameSocket;
+            if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+              gameSocket.send(JSON.stringify({ type: MSG_TYPES.SHOOT }));
+            }
           }
           break;
 
         case MSG_TYPES.RECENTER:
-          console.log('[SERVER RECENTER] Received RECENTER trigger from controller, forwarding to game');
           // Forward recenter request to the laptop game client
-          if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
-            gameSocket.send(JSON.stringify({ type: MSG_TYPES.RECENTER }));
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const gameSocket = sessions[ws.sessionId].gameSocket;
+            if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+              gameSocket.send(JSON.stringify({ type: MSG_TYPES.RECENTER }));
+            }
           }
           break;
 
@@ -83,18 +90,23 @@ export function handleSocketConnection(ws) {
   });
 
   ws.on('close', () => {
-    if (registeredAs === 'game') {
-      console.log('Game client disconnected');
-      if (gameSocket === ws) {
-        gameSocket = null;
+    if (ws.sessionId && sessions[ws.sessionId]) {
+      const session = sessions[ws.sessionId];
+      if (registeredAs === 'game') {
+        console.log(`Game Disconnected from session ${ws.sessionId}`);
+        if (session.gameSocket === ws) {
+          session.gameSocket = null;
+        }
+      } else if (registeredAs === 'controller') {
+        console.log(`Controller Disconnected from session ${ws.sessionId}`);
+        session.controllers.delete(ws);
       }
-      sendStatusUpdates();
-    } else if (registeredAs === 'controller') {
-      console.log('Controller client disconnected');
-      if (controllerSocket === ws) {
-        controllerSocket = null;
+      sendStatusUpdates(session);
+
+      // Cleanup empty sessions
+      if (!session.gameSocket && session.controllers.size === 0) {
+        delete sessions[ws.sessionId];
       }
-      sendStatusUpdates();
     }
   });
 
@@ -105,20 +117,23 @@ export function handleSocketConnection(ws) {
 
 /**
  * Sends connection state updates to the clients based on their pairing status.
+ * @param {object} session The session object containing gameSocket and controllers.
  */
-function sendStatusUpdates() {
-  const isGameConnected = gameSocket && gameSocket.readyState === 1 /* OPEN */;
-  const isControllerConnected = controllerSocket && controllerSocket.readyState === 1 /* OPEN */;
+function sendStatusUpdates(session) {
+  if (!session) return;
+  
+  const isGameConnected = session.gameSocket && session.gameSocket.readyState === 1 /* OPEN */;
+  const isControllerConnected = session.controllers.size > 0;
 
-  if (isGameConnected && isControllerConnected) {
-    gameSocket.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state: CONNECTION_STATES.CONNECTED }));
-    controllerSocket.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state: CONNECTION_STATES.CONNECTED }));
-  } else {
-    if (isGameConnected) {
-      gameSocket.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state: CONNECTION_STATES.WAITING }));
-    }
-    if (isControllerConnected) {
-      controllerSocket.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state: CONNECTION_STATES.WAITING }));
-    }
+  const state = (isGameConnected && isControllerConnected) ? CONNECTION_STATES.CONNECTED : CONNECTION_STATES.WAITING;
+
+  if (isGameConnected) {
+    session.gameSocket.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state }));
   }
+
+  session.controllers.forEach(controller => {
+    if (controller.readyState === 1 /* OPEN */) {
+      controller.send(JSON.stringify({ type: MSG_TYPES.STATUS_UPDATE, state }));
+    }
+  });
 }

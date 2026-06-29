@@ -297,21 +297,4 @@ body {
   }
 }
 
-.debug-overlay {
-  position: absolute;
-  top: 25px;
-  left: 25px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid #ff007f;
-  color: #00f2fe;
-  padding: 15px;
-  font-family: monospace;
-  font-size: 12px;
-  border-radius: 8px;
-  z-index: 9999;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  line-height: 1.4;
-}
+

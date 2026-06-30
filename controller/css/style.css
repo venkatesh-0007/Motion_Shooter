@@ -221,4 +221,21 @@ body {
   box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
 }
 
+.insecure-warning {
+  background: rgba(235, 77, 75, 0.15);
+  border-bottom: 1px solid rgba(235, 77, 75, 0.3);
+  color: #ff7675;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  padding: 8px 15px;
+  letter-spacing: 0.5px;
+  z-index: 9;
+  box-shadow: 0 0 10px rgba(235, 77, 75, 0.1);
+}
+
+.insecure-warning.hidden {
+  display: none !important;
+}
+
 

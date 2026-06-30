@@ -15,6 +15,12 @@ let hasNewData = false;
 let lastSendTime = 0;
 const SEND_INTERVAL = 1000 / 60; // Max 60 FPS
 
+// Gyro activity tracking and Touch Aiming Fallback variables
+let isGyroActive = false;
+let simulatedOrientation = { alpha: 0, beta: 0, gamma: 0 };
+let startTouch = null;
+let isDragging = false;
+
 // Session extraction
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('session');
@@ -47,24 +53,21 @@ function handleStatusChange(state) {
  */
 function attachSensorListener() {
   window.addEventListener('deviceorientation', (event) => {
-
     // Only capture if we receive valid coordinates
     if (event.alpha !== null && event.beta !== null) {
+      isGyroActive = true;
       latestOrientation.alpha = event.alpha;
       latestOrientation.beta = event.beta;
       latestOrientation.gamma = event.gamma;
       hasNewData = true;
     }
   }, true);
-
-
 }
 
 /**
  * Checks orientation API availability and manages permissions.
  */
 function checkSensors() {
-
   // START NETWORKING IMMEDIATELY
   // Unconditionally connect WebSocket so game always connects (restoring baseline)
   connection = new MobileController(sessionId, handleStatusChange);
@@ -74,22 +77,20 @@ function checkSensors() {
   const isSecure = window.isSecureContext;
   if (!isSecure) {
     console.error("⚠️ INSECURE HTTP ORIGIN: Mobile browsers generally disable DeviceOrientation API over HTTP. Please use chrome://flags or serve via HTTPS.");
+    const warningBanner = document.getElementById('insecure-warning');
+    if (warningBanner) {
+      warningBanner.classList.remove('hidden');
+    }
   }
 
   // 1. Verify DeviceOrientationEvent support
-  let isSupported = true;
-  if (typeof DeviceOrientationEvent === 'undefined') {
-    isSupported = false;
-  }
-  
+  let isSupported = typeof DeviceOrientationEvent !== 'undefined';
 
   if (isSupported) {
     // Platform check
     const ua = navigator.userAgent.toLowerCase();
     const isAndroid = /android/i.test(ua);
     const isIOS = /ipad|iphone|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    const platform = isAndroid ? 'Android' : (isIOS ? 'iOS' : 'Other');
-
 
     // iOS-specific permission check
     const hasRequestPermission = typeof DeviceOrientationEvent.requestPermission === 'function';
@@ -110,6 +111,8 @@ function checkSensors() {
             console.error('Permission request error:', error);
           });
       });
+    } else {
+      // Android or other browsers that don't require permission request
       attachSensorListener();
     }
   } else {
@@ -144,6 +147,11 @@ function sendLoop(timestamp) {
  */
 function triggerRecenter() {
   if (!isConnected) return;
+  if (!isGyroActive) {
+    simulatedOrientation = { alpha: 0, beta: 0, gamma: 0 };
+    latestOrientation = { alpha: 0, beta: 0, gamma: 0 };
+    hasNewData = true;
+  }
   connection.recenter();
 }
 
@@ -171,9 +179,62 @@ recenterBtn.addEventListener('click', (e) => {
   e.stopPropagation();
 });
 
+// Touchpad Drag-to-Aim & Tap-to-Shoot fallback
 touchPad.addEventListener('touchstart', (e) => {
   e.preventDefault(); // Prevents zooming and default tapping behaviors
-  triggerShoot();
+  const touch = e.touches[0];
+  startTouch = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+  isDragging = false;
+}, { passive: false });
+
+touchPad.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!startTouch) return;
+
+  // If orientation sensor is active, don't use touch-drag aiming
+  if (isGyroActive) return;
+
+  const touch = e.touches[0];
+  const dx = touch.clientX - startTouch.x;
+  const dy = touch.clientY - startTouch.y;
+
+  // Threshold to distinguish dragging from simple tap jitter
+  if (!isDragging && Math.sqrt(dx * dx + dy * dy) > 8) {
+    isDragging = true;
+  }
+
+  if (isDragging) {
+    // Modify simulated orientation
+    // Sensitivity scale: 0.25 degrees per pixel
+    simulatedOrientation.gamma += dx * 0.25;
+    simulatedOrientation.beta += dy * 0.25;
+
+    // Clamp simulated orientation values to reasonable gyro ranges
+    simulatedOrientation.gamma = Math.max(-90, Math.min(90, simulatedOrientation.gamma));
+    simulatedOrientation.beta = Math.max(-90, Math.min(90, simulatedOrientation.beta));
+
+    latestOrientation.gamma = simulatedOrientation.gamma;
+    latestOrientation.beta = simulatedOrientation.beta;
+    hasNewData = true;
+
+    // Reset touch coordinates for relative drag motion
+    startTouch.x = touch.clientX;
+    startTouch.y = touch.clientY;
+  }
+}, { passive: false });
+
+touchPad.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (!startTouch) return;
+
+  const elapsed = Date.now() - startTouch.time;
+  // If it was a quick touch and they didn't drag, treat it as a trigger shoot
+  if (!isDragging && elapsed < 250) {
+    triggerShoot();
+  }
+
+  startTouch = null;
+  isDragging = false;
 }, { passive: false });
 
 function initSession() {

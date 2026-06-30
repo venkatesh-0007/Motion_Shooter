@@ -132,8 +132,6 @@ function recenter() {
  * Handles incoming WebSocket device orientation packets.
  */
 function handleOrientation(alpha, beta, gamma) {
-
-
   currentOrientation = { alpha, beta, gamma };
 
   if (!canvas) {
@@ -146,15 +144,30 @@ function handleOrientation(alpha, beta, gamma) {
     referenceOrientation = { alpha, beta, gamma };
     crosshair.x = canvas.width / 2;
     crosshair.y = canvas.height / 2;
+    crosshair.targetX = crosshair.x;
+    crosshair.targetY = crosshair.y;
   }
 
-  // Temporarily map orientation directly, ignoring calibration/smoothing
-  crosshair.x += gamma * 2;
-  crosshair.y += beta * 2;
+  // Calculate relative angular difference (gamma = roll/yaw-like tilt, beta = pitch)
+  let diffX = getAngleDifference(gamma, referenceOrientation.gamma);
+  let diffY = getAngleDifference(beta, referenceOrientation.beta);
 
-  // Clamp coordinates within game viewport boundaries
-  crosshair.x = Math.max(crosshair.radius, Math.min(canvas.width - crosshair.radius, crosshair.x));
-  crosshair.y = Math.max(crosshair.radius, Math.min(canvas.height - crosshair.radius, crosshair.y));
+  // Apply dead zone
+  if (Math.abs(diffX) < deadZone) diffX = 0;
+  if (Math.abs(diffY) < deadZone) diffY = 0;
+
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  // Base multiplier: 1 degree of tilt = 15 pixels at sensitivity 1.0
+  const baseScale = 15;
+
+  crosshair.targetX = centerX + (diffX * baseScale * sensitivity);
+  crosshair.targetY = centerY + (diffY * baseScale * sensitivity);
+
+  // Clamp target coordinates within game viewport boundaries
+  crosshair.targetX = Math.max(crosshair.radius, Math.min(canvas.width - crosshair.radius, crosshair.targetX));
+  crosshair.targetY = Math.max(crosshair.radius, Math.min(canvas.height - crosshair.radius, crosshair.targetY));
 }
 
 /**
@@ -269,8 +282,12 @@ function gameLoop(timestamp) {
   requestAnimationFrame(gameLoop);
 
   // 1. Update positions (Interpolation smoothing)
-  // crosshair.x += (crosshair.targetX - crosshair.x) * smoothing;
-  // crosshair.y += (crosshair.targetY - crosshair.y) * smoothing;
+  crosshair.x += (crosshair.targetX - crosshair.x) * smoothing;
+  crosshair.y += (crosshair.targetY - crosshair.y) * smoothing;
+
+  // Clamp coordinates within game viewport boundaries
+  crosshair.x = Math.max(crosshair.radius, Math.min(canvas.width - crosshair.radius, crosshair.x));
+  crosshair.y = Math.max(crosshair.radius, Math.min(canvas.height - crosshair.radius, crosshair.y));
 
 
 

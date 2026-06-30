@@ -3,7 +3,7 @@ import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { IS_PRODUCTION, BACKEND_URL } from '../shared/config.js';
+
 import { getLocalIPInfo } from './ip-helper.js';
 import { handleSocketConnection } from './socket-handler.js';
 import QRCode from 'qrcode';
@@ -61,8 +61,8 @@ wss.on('connection', (ws) => {
 // Start listening
 server.listen(PORT, () => {
   const ipInfo = getLocalIPInfo();
-  const gameUrl = IS_PRODUCTION ? `${BACKEND_URL}/game` : `http://${ipInfo.ip}:${PORT}/game`;
-  const controllerUrl = IS_PRODUCTION ? `${BACKEND_URL}/controller` : `http://${ipInfo.ip}:${PORT}/controller`;
+  const gameUrl = `http://${ipInfo.ip}:${PORT}/game`;
+  const controllerUrl = `http://${ipInfo.ip}:${PORT}/controller`;
 
   console.log(`==================================================`);
   console.log(`Motion Shooter Server Running`);

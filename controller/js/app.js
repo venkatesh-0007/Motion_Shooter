@@ -7,6 +7,11 @@ const touchPad = document.getElementById('touch-pad');
 const recenterBtn = document.getElementById('recenter-btn');
 const permissionOverlay = document.getElementById('permission-overlay');
 const enableSensorsBtn = document.getElementById('enable-sensors-btn');
+const settingsToggleBtn = document.getElementById('settings-toggle-btn');
+const settingsOverlay = document.getElementById('settings-overlay');
+const settingsSaveBtn = document.getElementById('settings-save-btn');
+const settingsSensitivityInput = document.getElementById('settings-sensitivity');
+const sensDisplayVal = document.getElementById('sens-display-val');
 
 let connection = null;
 let isConnected = false;
@@ -21,6 +26,9 @@ let simulatedOrientation = { alpha: 0, beta: 0, gamma: 0 };
 let startTouch = null;
 let isDragging = false;
 
+// Local Settings State
+let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false };
+
 // Session extraction
 const urlParams = new URLSearchParams(window.location.search);
 let sessionId = urlParams.get('session');
@@ -31,20 +39,35 @@ const joinCodeInput = document.getElementById('join-code-input');
 const joinSessionBtn = document.getElementById('join-session-btn');
 
 /**
- * Updates the screen status banner based on WS state.
- * @param {string} state Connection state (WAITING, CONNECTED, etc.)
+ * Updates the screen status banner based on WS state and game progress.
  */
-function handleStatusChange(state) {
+function handleStatusChange(state, gameState) {
   const isConnectedVal = state === CONNECTION_STATES.CONNECTED;
 
   if (isConnectedVal) {
     isConnected = true;
     statusIndicator.textContent = 'Controller Connected ✅';
     statusIndicator.className = 'status connected';
+    
+    // Toggle lobby screen overlay based on game status
+    const lobbyOverlay = document.getElementById('lobby-overlay');
+    if (lobbyOverlay) {
+      if (gameState === 'lobby') {
+        lobbyOverlay.classList.remove('hidden');
+      } else {
+        lobbyOverlay.classList.add('hidden');
+      }
+    }
   } else {
     isConnected = false;
     statusIndicator.textContent = 'Waiting for game client...';
     statusIndicator.className = 'status waiting';
+
+    // Hide lobby overlay on disconnect
+    const lobbyOverlay = document.getElementById('lobby-overlay');
+    if (lobbyOverlay) {
+      lobbyOverlay.classList.add('hidden');
+    }
   }
 }
 
@@ -71,6 +94,12 @@ function checkSensors() {
   // START NETWORKING IMMEDIATELY
   // Unconditionally connect WebSocket so game always connects (restoring baseline)
   connection = new MobileController(sessionId, handleStatusChange);
+  connection.onGameStart = () => {
+    const lobbyOverlay = document.getElementById('lobby-overlay');
+    if (lobbyOverlay) {
+      lobbyOverlay.classList.add('hidden');
+    }
+  };
   connection.connect();
   requestAnimationFrame(sendLoop);
 
@@ -206,14 +235,16 @@ touchPad.addEventListener('touchmove', (e) => {
   if (isDragging) {
     // Modify simulated orientation
     // Sensitivity scale: 0.25 degrees per pixel
-    simulatedOrientation.gamma += dx * 0.25;
-    simulatedOrientation.beta += dy * 0.25;
+    const invX = settings.invertX ? -1 : 1;
+    const invY = settings.invertY ? -1 : 1;
 
-    // Clamp simulated orientation values to reasonable gyro ranges
-    simulatedOrientation.gamma = Math.max(-90, Math.min(90, simulatedOrientation.gamma));
+    simulatedOrientation.alpha = (simulatedOrientation.alpha - dx * 0.25 * invX) % 360;
+    if (simulatedOrientation.alpha < 0) simulatedOrientation.alpha += 360;
+
+    simulatedOrientation.beta -= dy * 0.25 * invY;
     simulatedOrientation.beta = Math.max(-90, Math.min(90, simulatedOrientation.beta));
 
-    latestOrientation.gamma = simulatedOrientation.gamma;
+    latestOrientation.alpha = simulatedOrientation.alpha;
     latestOrientation.beta = simulatedOrientation.beta;
     hasNewData = true;
 
@@ -237,7 +268,76 @@ touchPad.addEventListener('touchend', (e) => {
   isDragging = false;
 }, { passive: false });
 
+function loadSettings() {
+  try {
+    const stored = localStorage.getItem('motion_shooter_settings');
+    if (stored) {
+      settings = { ...settings, ...JSON.parse(stored) };
+    }
+  } catch (e) {
+    console.error('Failed to load settings:', e);
+  }
+
+  // Populate UI inputs
+  const nameInput = document.getElementById('settings-player-name');
+  if (nameInput) nameInput.value = settings.playerName;
+  if (settingsSensitivityInput) {
+    settingsSensitivityInput.value = settings.sensitivity;
+    sensDisplayVal.textContent = Number(settings.sensitivity).toFixed(1);
+  }
+  const invXInput = document.getElementById('settings-invert-x');
+  if (invXInput) invXInput.checked = settings.invertX;
+  const invYInput = document.getElementById('settings-invert-y');
+  if (invYInput) invYInput.checked = settings.invertY;
+}
+
+function saveSettings() {
+  const nameInput = document.getElementById('settings-player-name');
+  const invXInput = document.getElementById('settings-invert-x');
+  const invYInput = document.getElementById('settings-invert-y');
+
+  if (nameInput) settings.playerName = nameInput.value.trim() || 'Player';
+  if (settingsSensitivityInput) settings.sensitivity = parseFloat(settingsSensitivityInput.value);
+  if (invXInput) settings.invertX = invXInput.checked;
+  if (invYInput) settings.invertY = invYInput.checked;
+
+  try {
+    localStorage.setItem('motion_shooter_settings', JSON.stringify(settings));
+  } catch (e) {
+    console.error('Failed to save settings:', e);
+  }
+
+  // Send update to server if connected
+  if (connection && isConnected) {
+    connection.sendSettings(settings);
+  }
+}
+
 function initSession() {
+  loadSettings();
+
+  // Settings range slider listener
+  if (settingsSensitivityInput && sensDisplayVal) {
+    settingsSensitivityInput.addEventListener('input', (e) => {
+      sensDisplayVal.textContent = Number(e.target.value).toFixed(1);
+    });
+  }
+
+  // Settings toggle overlay listeners
+  if (settingsToggleBtn && settingsOverlay) {
+    settingsToggleBtn.addEventListener('click', () => {
+      loadSettings(); // Reload to sync state
+      settingsOverlay.classList.remove('hidden');
+    });
+  }
+
+  if (settingsSaveBtn && settingsOverlay) {
+    settingsSaveBtn.addEventListener('click', () => {
+      saveSettings();
+      settingsOverlay.classList.add('hidden');
+    });
+  }
+
   if (sessionId && sessionId.trim().length > 0) {
     if (joinOverlay) joinOverlay.classList.add('hidden');
     checkSensors();

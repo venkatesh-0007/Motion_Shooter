@@ -15,18 +15,32 @@
     <div class="lobby-card">
       <div class="header">
         <h1>MOTION SHOOTER</h1>
-        <div class="status-badge waiting">Waiting for controller...</div>
+        <div id="lobby-status" class="status-badge waiting">Waiting for controller...</div>
       </div>
       
-      <div class="qr-container">
-        <img id="qr-image" alt="Pairing QR Code">
-      </div>
+      <div class="lobby-columns">
+        <div class="lobby-column-left">
+          <div class="qr-container">
+            <img id="qr-image" alt="Pairing QR Code">
+          </div>
 
-      <div class="instructions">
-        <h3>Session ID: <span id="session-id-display">------</span></h3>
-        <p>1. Scan the QR code with your mobile camera.</p>
-        <p>2. Ensure both devices are on the same Wi-Fi network.</p>
-        <p class="url-hint">Or browse to: <span id="controller-url">Loading...</span></p>
+          <div class="instructions">
+            <h3>Session ID: <span id="session-id-display">------</span></h3>
+            <p>1. Scan the QR code with your mobile camera.</p>
+            <p>2. Ensure both devices are on the same Wi-Fi network.</p>
+            <p class="url-hint">Or browse to: <span id="controller-url">Loading...</span></p>
+          </div>
+        </div>
+
+        <div class="lobby-column-right">
+          <div class="lobby-players-header">PLAYERS CONNECTED</div>
+          <div id="lobby-players-list" class="lobby-players-list">
+            <div class="player-slot" data-index="0"><span class="status-dot empty">⚪</span> <span class="player-name empty">Waiting...</span></div>
+            <div class="player-slot" data-index="1"><span class="status-dot empty">⚪</span> <span class="player-name empty">Waiting...</span></div>
+            <div class="player-slot" data-index="2"><span class="status-dot empty">⚪</span> <span class="player-name empty">Waiting...</span></div>
+          </div>
+          <button id="start-game-btn" class="start-btn" disabled>Start Game</button>
+        </div>
       </div>
     </div>
   </div>
@@ -41,6 +55,10 @@
       <div class="hud-item score-container">
         <span class="label">SCORE</span>
         <span id="score-val" class="value">000</span>
+      </div>
+      <div id="timer-hud-item" class="hud-item timer-container">
+        <span class="label">TIME LEFT</span>
+        <span id="timer-val" class="value">60</span>
       </div>
       <div class="hud-item controller-status">
         <span class="label">CONTROLLER</span>
@@ -74,6 +92,66 @@
       </div>
       <div class="setting-item hint">
         <p>Tap <strong>Recenter</strong> on phone to align target</p>
+      </div>
+    </div>
+
+    <!-- Live Leaderboard Panel -->
+    <div id="leaderboard-panel" class="leaderboard-panel hidden">
+      <h3>LEADERBOARD</h3>
+      <div id="leaderboard-list" class="leaderboard-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- End Game Screen Overlay -->
+  <div id="end-screen" class="end-screen hidden">
+    <div class="end-card">
+      <h1 class="glow-text">GAME OVER</h1>
+      
+      <!-- Winner stats -->
+      <div class="winner-showcase">
+        <div class="trophy">🏆</div>
+        <h2 id="winner-name">WINNER</h2>
+        <div class="winner-stats-grid">
+          <div class="winner-stat">
+            <span class="stat-label">SCORE</span>
+            <span id="winner-score" class="stat-value">0</span>
+          </div>
+          <div class="winner-stat">
+            <span class="stat-label">ACCURACY</span>
+            <span id="winner-accuracy" class="stat-value">0%</span>
+          </div>
+          <div class="winner-stat">
+            <span class="stat-label">HITS</span>
+            <span id="winner-hits" class="stat-value">0</span>
+          </div>
+          <div class="winner-stat">
+            <span class="stat-label">SHOTS</span>
+            <span id="winner-shots" class="stat-value">0</span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Runner stats -->
+      <div class="runners-up">
+        <div class="runner-row" id="runner-second">
+          <span class="runner-rank">2nd</span>
+          <span class="runner-dot" id="runner-second-dot">🔵</span>
+          <span class="runner-name" id="runner-second-name">Player 2</span>
+          <span class="runner-score" id="runner-second-score">0</span>
+        </div>
+        <div class="runner-row" id="runner-third">
+          <span class="runner-rank">3rd</span>
+          <span class="runner-dot" id="runner-third-dot">🟢</span>
+          <span class="runner-name" id="runner-third-name">Player 3</span>
+          <span class="runner-score" id="runner-third-score">0</span>
+        </div>
+      </div>
+      
+      <div class="end-actions">
+        <button id="play-again-btn" class="end-btn primary-btn">Play Again</button>
+        <button id="return-lobby-btn" class="end-btn secondary-btn">Return to Lobby</button>
       </div>
     </div>
   </div>

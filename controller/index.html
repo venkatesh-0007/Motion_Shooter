@@ -13,7 +13,10 @@
   <!-- Status header -->
   <header class="status-bar">
     <div class="logo">MOTION SHOOTER</div>
-    <div id="status-indicator" class="status waiting">Waiting for connection...</div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div id="status-indicator" class="status waiting">Waiting for connection...</div>
+      <button id="settings-toggle-btn" class="settings-toggle-btn">⚙️</button>
+    </div>
   </header>
   
   <!-- Insecure Origin Warning Banner -->
@@ -50,7 +53,42 @@
     </div>
   </div>
 
+  <!-- Settings Overlay -->
+  <div id="settings-overlay" class="overlay hidden">
+    <div class="overlay-card settings-card">
+      <h2>CONTROLLER SETTINGS</h2>
+      <div class="settings-form">
+        <div class="setting-group">
+          <label for="settings-player-name">Player Name</label>
+          <input type="text" id="settings-player-name" class="setting-input" placeholder="Player" value="Player" maxlength="12">
+        </div>
+        <div class="setting-group">
+          <label for="settings-sensitivity">Sensitivity: <span id="sens-display-val">1.0</span></label>
+          <input type="range" id="settings-sensitivity" min="0.1" max="3.0" step="0.1" value="1.0" class="setting-slider">
+        </div>
+        <div class="setting-group checkbox-group">
+          <label>
+            <input type="checkbox" id="settings-invert-x"> Invert X Axis
+          </label>
+        </div>
+        <div class="setting-group checkbox-group">
+          <label>
+            <input type="checkbox" id="settings-invert-y"> Invert Y Axis
+          </label>
+        </div>
+      </div>
+      <button id="settings-save-btn" class="action-btn" style="margin-top: 15px;">Save & Close</button>
+    </div>
+  </div>
 
+  <!-- Controller Lobby Overlay -->
+  <div id="lobby-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>MULTIPLAYER LOBBY</h2>
+      <p class="status-glow" style="font-size: 18px; margin-bottom: 12px; color: #2ed573;">Connected ✅</p>
+      <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">Waiting for host to start the game...</p>
+    </div>
+  </div>
 
   <script type="module" src="/controller/js/app.js"></script>
 </body>

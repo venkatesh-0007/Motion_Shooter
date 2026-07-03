@@ -1,6 +1,7 @@
 import { CONNECTION_STATES } from '/shared/constants.js';
 import { BACKEND_URL } from '/shared/config.js';
 import { GameConnection } from './connection.js';
+import { PlayerManager } from './player-manager.js';
 
 // DOM Elements
 const lobbyScreen = document.getElementById('lobby-screen');
@@ -25,17 +26,17 @@ const deadzoneSlider = document.getElementById('deadzone-slider');
 const deadzoneVal = document.getElementById('deadzone-val');
 
 // Game states
-let score = 0;
+const playerManager = new PlayerManager();
 let isConnected = false;
+let gameStarted = false;
 let canvas, ctx;
 let targets = [];
 let particles = [];
 const MAX_TARGETS = 3;
 
-// Crosshair & Calibration values
-const crosshair = { x: 0, y: 0, targetX: 0, targetY: 0, radius: 15, shootPulse: 0 };
-let referenceOrientation = null;
-let currentOrientation = { alpha: 0, beta: 0, gamma: 0 };
+// Round countdown timer
+let timeLeft = 60;
+let timerInterval = null;
 
 // Control configurations (bind directly to sliders)
 let sensitivity = parseFloat(sensSlider.value);
@@ -93,64 +94,103 @@ async function generateLobbyQR() {
  */
 
 
-function handleStatusChange(state) {
+function handleStatusChange(state, gameState) {
   const isConnectedVal = state === CONNECTION_STATES.CONNECTED;
+  isConnected = isConnectedVal;
 
-
-  if (isConnectedVal) {
-    isConnected = true;
-    lobbyScreen.classList.add('hidden');
-    gameContainer.classList.remove('hidden');
-    
-    // Initialise and start canvas game loop
-    initCanvas();
-    // Reset baseline calibration for initial position
-    referenceOrientation = null;
-  } else {
-    isConnected = false;
-    lobbyScreen.classList.remove('hidden');
-    gameContainer.classList.add('hidden');
+  const controllerStatusSpan = document.querySelector('.controller-status .value');
+  if (controllerStatusSpan) {
+    if (isConnected) {
+      controllerStatusSpan.textContent = 'CONNECTED ✅';
+      controllerStatusSpan.className = 'value success-glow';
+    } else {
+      controllerStatusSpan.textContent = 'WAITING ⚪';
+      controllerStatusSpan.className = 'value';
+    }
   }
 
+  // Update lobby status indicator
+  const lobbyStatus = document.getElementById('lobby-status');
+  if (lobbyStatus) {
+    const activeCount = playerManager.getConnectedPlayers().length;
+    if (activeCount > 0) {
+      lobbyStatus.textContent = `${activeCount} Player(s) Ready`;
+      lobbyStatus.className = 'status-badge success-glow';
+    } else {
+      lobbyStatus.textContent = 'Waiting for controller...';
+      lobbyStatus.className = 'status-badge waiting';
+    }
+  }
+
+  // If we lost all connections mid-game, return to lobby
+  if (!isConnected && gameStarted) {
+    returnToLobby();
+  }
 }
 
 /**
  * Calibrates current sensor readings as the center baseline.
  */
-function recenter() {
-  if (currentOrientation) {
-    const prevReference = referenceOrientation ? { ...referenceOrientation } : null;
-    referenceOrientation = { ...currentOrientation };
-
-
+function recenter(arg1) {
+  let playerId;
+  if (typeof arg1 === 'string') {
+    playerId = arg1;
   } else {
-    console.warn('[DESKTOP RECENTER] Recenter requested, but currentOrientation is null.');
+    playerId = playerManager.getActivePlayerId() || 'default';
+  }
+
+  const player = playerManager.getPlayer(playerId);
+  if (player && player.orientation) {
+    player.referenceOrientation = { ...player.orientation };
+  } else {
+    console.warn(`[DESKTOP RECENTER] Recenter requested for player ${playerId}, but orientation data is null.`);
   }
 }
 
 /**
  * Handles incoming WebSocket device orientation packets.
  */
-function handleOrientation(alpha, beta, gamma) {
-  currentOrientation = { alpha, beta, gamma };
+function handleOrientation(arg1, arg2, arg3, arg4) {
+  let playerId, alpha, beta, gamma;
+  if (typeof arg1 === 'string') {
+    playerId = arg1;
+    alpha = arg2;
+    beta = arg3;
+    gamma = arg4;
+  } else {
+    playerId = playerManager.getActivePlayerId() || 'default';
+    alpha = arg1;
+    beta = arg2;
+    gamma = arg3;
+  }
 
   if (!canvas) {
     console.warn("[DESKTOP ORIENTATION] Canvas not initialized yet.");
     return;
   }
 
-  if (!referenceOrientation) {
-    // Initialize crosshair to center on first packet
-    referenceOrientation = { alpha, beta, gamma };
-    crosshair.x = canvas.width / 2;
-    crosshair.y = canvas.height / 2;
-    crosshair.targetX = crosshair.x;
-    crosshair.targetY = crosshair.y;
+  let player = playerManager.getPlayer(playerId);
+  if (!player) {
+    player = playerManager.addPlayer(playerId);
+  }
+  player.orientation = { alpha, beta, gamma };
+  player.lastSeen = Date.now();
+
+  if (!player.referenceOrientation) {
+    player.referenceOrientation = { alpha, beta, gamma };
+    player.crosshair.x = canvas.width / 2;
+    player.crosshair.y = canvas.height / 2;
+    player.crosshair.targetX = player.crosshair.x;
+    player.crosshair.targetY = player.crosshair.y;
   }
 
-  // Calculate relative angular difference (gamma = roll/yaw-like tilt, beta = pitch)
-  let diffX = getAngleDifference(gamma, referenceOrientation.gamma);
-  let diffY = getAngleDifference(beta, referenceOrientation.beta);
+  // Calculate relative angular difference (alpha = yaw for horizontal, beta = pitch for vertical)
+  let diffX = -getAngleDifference(alpha, player.referenceOrientation.alpha);
+  let diffY = -getAngleDifference(beta, player.referenceOrientation.beta);
+
+  // Apply player settings
+  if (player.invertX) diffX = -diffX;
+  if (player.invertY) diffY = -diffY;
 
   // Apply dead zone
   if (Math.abs(diffX) < deadZone) diffX = 0;
@@ -161,13 +201,14 @@ function handleOrientation(alpha, beta, gamma) {
 
   // Base multiplier: 1 degree of tilt = 15 pixels at sensitivity 1.0
   const baseScale = 15;
+  const playerSens = player.sensitivity !== undefined ? player.sensitivity : 1.0;
 
-  crosshair.targetX = centerX + (diffX * baseScale * sensitivity);
-  crosshair.targetY = centerY + (diffY * baseScale * sensitivity);
+  player.crosshair.targetX = centerX + (diffX * baseScale * playerSens * sensitivity);
+  player.crosshair.targetY = centerY + (diffY * baseScale * playerSens * sensitivity);
 
   // Clamp target coordinates within game viewport boundaries
-  crosshair.targetX = Math.max(crosshair.radius, Math.min(canvas.width - crosshair.radius, crosshair.targetX));
-  crosshair.targetY = Math.max(crosshair.radius, Math.min(canvas.height - crosshair.radius, crosshair.targetY));
+  player.crosshair.targetX = Math.max(player.crosshair.radius, Math.min(canvas.width - player.crosshair.radius, player.crosshair.targetX));
+  player.crosshair.targetY = Math.max(player.crosshair.radius, Math.min(canvas.height - player.crosshair.radius, player.crosshair.targetY));
 }
 
 /**
@@ -193,29 +234,36 @@ function spawnParticles(x, y, color, count = 12) {
 /**
  * Handles incoming trigger signals from the controller.
  */
-function handleShoot() {
-  if (!isConnected) return;
+function handleShoot(arg1) {
+  if (!isConnected || !gameStarted) return;
 
+  let playerId;
+  if (typeof arg1 === 'string') {
+    playerId = arg1;
+  } else {
+    playerId = playerManager.getActivePlayerId() || 'default';
+  }
 
+  const player = playerManager.getPlayer(playerId);
+  if (!player || !player.connected) return;
+
+  const ch = player.crosshair;
 
   // Apply expansion pulse on crosshair
-  crosshair.shootPulse = 1.0;
+  ch.shootPulse = 1.0;
 
   // Spawn visual muzzle particles at crosshair pointer
-  spawnParticles(crosshair.x, crosshair.y, '#ff007f', 6);
+  spawnParticles(ch.x, ch.y, ch.color, 6);
 
   // Check overlap collision with active targets
-  let targetHit = false;
   for (let i = targets.length - 1; i >= 0; i--) {
     const target = targets[i];
-    const dx = crosshair.x - target.x;
-    const dy = crosshair.y - target.y;
+    const dx = ch.x - target.x;
+    const dy = ch.y - target.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
 
     // Overlap condition (crosshair cursor hits circle bounds)
     if (distance < target.radius) {
-      targetHit = true;
-      
       // Spawn score explosion particles
       spawnParticles(target.x, target.y, target.color, 20);
 
@@ -223,13 +271,10 @@ function handleShoot() {
       targets.splice(i, 1);
       spawnSingleTarget();
 
-      // Update score HUD
-      score += 100;
-      scoreVal.textContent = String(score).padStart(3, '0');
+      // Notify server about the hit
+      connection.sendPlayerHit(playerId);
     }
   }
-
-
 }
 
 /**
@@ -278,23 +323,25 @@ function spawnSingleTarget() {
  * Core rendering and coordinate interpolation updates loop.
  */
 function gameLoop(timestamp) {
-  if (!isConnected) return;
+  if (!isConnected || !gameStarted) return;
   requestAnimationFrame(gameLoop);
 
-  // 1. Update positions (Interpolation smoothing)
-  crosshair.x += (crosshair.targetX - crosshair.x) * smoothing;
-  crosshair.y += (crosshair.targetY - crosshair.y) * smoothing;
+  // 1. Update positions (Interpolation smoothing) for all active players
+  playerManager.players.forEach(player => {
+    if (!player.connected) return;
+    const ch = player.crosshair;
+    ch.x += (ch.targetX - ch.x) * smoothing;
+    ch.y += (ch.targetY - ch.y) * smoothing;
 
-  // Clamp coordinates within game viewport boundaries
-  crosshair.x = Math.max(crosshair.radius, Math.min(canvas.width - crosshair.radius, crosshair.x));
-  crosshair.y = Math.max(crosshair.radius, Math.min(canvas.height - crosshair.radius, crosshair.y));
+    // Clamp coordinates within game viewport boundaries
+    ch.x = Math.max(ch.radius, Math.min(canvas.width - ch.radius, ch.x));
+    ch.y = Math.max(ch.radius, Math.min(canvas.height - ch.radius, ch.y));
 
-
-
-  // Decay shoot pulse animation scale
-  if (crosshair.shootPulse > 0) {
-    crosshair.shootPulse -= 0.1;
-  }
+    // Decay shoot pulse animation scale
+    if (ch.shootPulse > 0) {
+      ch.shootPulse -= 0.1;
+    }
+  });
 
   // Update particle physics
   for (let i = particles.length - 1; i >= 0; i--) {
@@ -352,8 +399,12 @@ function gameLoop(timestamp) {
     ctx.restore();
   });
 
-  // Draw Crosshair
-  drawCrosshair();
+  // Draw Crosshairs for all active players
+  playerManager.players.forEach(player => {
+    if (player.connected) {
+      drawCrosshair(player.crosshair);
+    }
+  });
 }
 
 /**
@@ -379,17 +430,17 @@ function drawGrid() {
 /**
  * Draws the visual crosshair cursor.
  */
-function drawCrosshair() {
-  const x = crosshair.x;
-  const y = crosshair.y;
-  const pulseScale = 1 + crosshair.shootPulse * 0.4;
-  const currentRadius = crosshair.radius * pulseScale;
+function drawCrosshair(ch) {
+  const x = ch.x;
+  const y = ch.y;
+  const pulseScale = 1 + ch.shootPulse * 0.4;
+  const currentRadius = ch.radius * pulseScale;
 
   ctx.save();
-  ctx.shadowBlur = 10;
-  ctx.shadowColor = crosshair.shootPulse > 0 ? '#ff007f' : '#00f2fe';
-  ctx.strokeStyle = crosshair.shootPulse > 0 ? '#ff007f' : '#00f2fe';
-  ctx.lineWidth = 2;
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = ch.shootPulse > 0 ? '#ffffff' : ch.color;
+  ctx.strokeStyle = ch.shootPulse > 0 ? '#ffffff' : ch.color;
+  ctx.lineWidth = 2.5;
 
   // Outer segmented ring
   ctx.beginPath();
@@ -402,8 +453,8 @@ function drawCrosshair() {
 
   // Draw central target dot
   ctx.beginPath();
-  ctx.arc(x, y, 3, 0, Math.PI * 2);
-  ctx.fillStyle = crosshair.shootPulse > 0 ? '#ff007f' : '#00f2fe';
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fillStyle = ch.shootPulse > 0 ? '#ffffff' : ch.color;
   ctx.fill();
 
   // Draw indicator cross lines
@@ -428,6 +479,242 @@ function drawCrosshair() {
 
 // Initialise Connection
 const connection = new GameConnection(sessionId, handleStatusChange, handleOrientation, handleShoot, recenter);
+
+// Connection callbacks
+connection.onPlayerConnected = (playerData) => {
+  playerManager.addPlayer(
+    playerData.sessionId, 
+    playerData.playerName, 
+    playerData.sensitivity, 
+    playerData.invertX, 
+    playerData.invertY
+  );
+  updateLobbyUI();
+  updateLeaderboardUI();
+};
+
+connection.onPlayerDisconnected = (playerId) => {
+  playerManager.removePlayer(playerId);
+  updateLobbyUI();
+  updateLeaderboardUI();
+};
+
+connection.onPlayerSettingsUpdated = (playerId, settings) => {
+  playerManager.updateSettings(playerId, settings);
+  updateLobbyUI();
+  updateLeaderboardUI();
+};
+
+connection.onPlayerStatsUpdated = (playerId, statsPayload) => {
+  playerManager.updateStats(playerId, statsPayload.score, statsPayload.shots, statsPayload.hits);
+  updateLeaderboardUI();
+};
+
+// Lobby UI Sync
+function updateLobbyUI() {
+  const slots = document.querySelectorAll('.player-slot');
+  const startBtn = document.getElementById('start-game-btn');
+  const connectedPlayers = playerManager.getConnectedPlayers();
+
+  // Update status slots (up to 3)
+  for (let i = 0; i < 3; i++) {
+    const slot = slots[i];
+    if (!slot) continue;
+
+    // Find the player representing this slot index
+    const player = connectedPlayers.find(p => p.playerIndex === i);
+
+    if (player) {
+      slot.classList.add('active');
+      slot.innerHTML = `<span class="status-dot" style="color: ${player.crosshair.color};">●</span> <span class="player-name">${player.playerName}</span>`;
+    } else {
+      slot.classList.remove('active');
+      slot.innerHTML = `<span class="status-dot empty">⚪</span> <span class="player-name empty">Waiting...</span>`;
+    }
+  }
+
+  // Toggle Start button
+  if (startBtn) {
+    startBtn.disabled = connectedPlayers.length === 0;
+  }
+}
+
+// Live Leaderboard updates
+function updateLeaderboardUI() {
+  const listContainer = document.getElementById('leaderboard-list');
+  if (!listContainer) return;
+
+  const connectedPlayers = playerManager.getConnectedPlayers();
+  // Sort descending by score
+  connectedPlayers.sort((a, b) => b.score - a.score);
+
+  // Update DOM elements inside container
+  listContainer.innerHTML = '';
+  // Set explicit height based on number of players
+  listContainer.style.height = `${connectedPlayers.length * 52}px`;
+
+  connectedPlayers.forEach((player, index) => {
+    const entry = document.createElement('div');
+    entry.className = 'leaderboard-entry';
+    entry.style.transform = `translateY(${index * 52}px)`;
+
+    entry.innerHTML = `
+      <div class="leaderboard-entry-left">
+        <span class="player-dot" style="color: ${player.crosshair.color}; background: ${player.crosshair.color};"></span>
+        <span class="leaderboard-name">${player.playerName}</span>
+      </div>
+      <div class="score-dots"></div>
+      <span class="score-val">${player.score}</span>
+    `;
+
+    listContainer.appendChild(entry);
+  });
+
+  // Also update overall HUD score (display total sum of scores)
+  const totalScore = connectedPlayers.reduce((sum, p) => sum + p.score, 0);
+  if (scoreVal) {
+    scoreVal.textContent = String(totalScore).padStart(3, '0');
+  }
+}
+
+// Game transitions
+function startGame() {
+  gameStarted = true;
+  timeLeft = 60;
+
+  // UI state transition
+  lobbyScreen.classList.add('hidden');
+  document.getElementById('end-screen').classList.add('hidden');
+  gameContainer.classList.remove('hidden');
+  document.getElementById('leaderboard-panel').classList.remove('hidden');
+
+  // Reset HUD Timer styles
+  const timerVal = document.getElementById('timer-val');
+  if (timerVal) {
+    timerVal.textContent = timeLeft;
+    timerVal.parentElement.classList.remove('warning');
+  }
+
+  // Setup canvas
+  initCanvas();
+  updateLeaderboardUI();
+
+  // Reset/Start timer loop
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    if (timerVal) {
+      timerVal.textContent = timeLeft;
+      if (timeLeft <= 10) {
+        timerVal.parentElement.classList.add('warning');
+      }
+    }
+
+    if (timeLeft <= 0) {
+      clearInterval(timerInterval);
+      endGame();
+    }
+  }, 1000);
+}
+
+function endGame() {
+  gameStarted = false;
+  if (timerInterval) clearInterval(timerInterval);
+
+  const connectedPlayers = playerManager.getConnectedPlayers();
+  connectedPlayers.sort((a, b) => b.score - a.score);
+
+  const endScreen = document.getElementById('end-screen');
+  const winnerName = document.getElementById('winner-name');
+  const winnerScore = document.getElementById('winner-score');
+  const winnerAccuracy = document.getElementById('winner-accuracy');
+  const winnerHits = document.getElementById('winner-hits');
+  const winnerShots = document.getElementById('winner-shots');
+
+  const secondRow = document.getElementById('runner-second');
+  const thirdRow = document.getElementById('runner-third');
+
+  // Populate winner stats (1st place)
+  if (connectedPlayers.length > 0) {
+    const winner = connectedPlayers[0];
+    winnerName.textContent = winner.playerName.toUpperCase();
+    winnerScore.textContent = winner.score;
+    winnerHits.textContent = winner.hits;
+    winnerShots.textContent = winner.shots;
+    
+    const accuracy = winner.shots > 0 ? Math.round((winner.hits / winner.shots) * 100) : 0;
+    winnerAccuracy.textContent = `${accuracy}%`;
+  } else {
+    winnerName.textContent = 'NO PLAYERS';
+    winnerScore.textContent = '0';
+    winnerAccuracy.textContent = '0%';
+    winnerHits.textContent = '0';
+    winnerShots.textContent = '0';
+  }
+
+  // Populate 2nd place
+  if (connectedPlayers.length >= 2) {
+    secondRow.style.display = 'flex';
+    document.getElementById('runner-second-dot').style.background = connectedPlayers[1].crosshair.color;
+    document.getElementById('runner-second-name').textContent = connectedPlayers[1].playerName;
+    document.getElementById('runner-second-score').textContent = connectedPlayers[1].score;
+  } else {
+    secondRow.style.display = 'none';
+  }
+
+  // Populate 3rd place
+  if (connectedPlayers.length >= 3) {
+    thirdRow.style.display = 'flex';
+    document.getElementById('runner-third-dot').style.background = connectedPlayers[2].crosshair.color;
+    document.getElementById('runner-third-name').textContent = connectedPlayers[2].playerName;
+    document.getElementById('runner-third-score').textContent = connectedPlayers[2].score;
+  } else {
+    thirdRow.style.display = 'none';
+  }
+
+  // Show end screen
+  if (endScreen) {
+    endScreen.classList.remove('hidden');
+  }
+}
+
+function playAgain() {
+  connection.sendResetStats();
+  playerManager.resetAllPlayerStats();
+  startGame();
+}
+
+function returnToLobby() {
+  gameStarted = false;
+  if (timerInterval) clearInterval(timerInterval);
+  connection.sendReturnToLobby();
+  playerManager.resetAllPlayerStats();
+
+  // Transition UI
+  document.getElementById('end-screen').classList.add('hidden');
+  gameContainer.classList.add('hidden');
+  document.getElementById('leaderboard-panel').classList.add('hidden');
+  lobbyScreen.classList.remove('hidden');
+  
+  updateLobbyUI();
+}
+
+// Bind button actions
+const startBtn = document.getElementById('start-game-btn');
+if (startBtn) {
+  startBtn.addEventListener('click', startGame);
+}
+
+const playAgainBtn = document.getElementById('play-again-btn');
+if (playAgainBtn) {
+  playAgainBtn.addEventListener('click', playAgain);
+}
+
+const returnLobbyBtn = document.getElementById('return-lobby-btn');
+if (returnLobbyBtn) {
+  returnLobbyBtn.addEventListener('click', returnToLobby);
+}
+
 connection.connect();
 
 // Trigger QR setup

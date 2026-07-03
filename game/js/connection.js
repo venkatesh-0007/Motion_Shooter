@@ -46,20 +46,46 @@ export class GameConnection {
 
         switch (message.type) {
           case MSG_TYPES.STATUS_UPDATE:
-            this.onStatusChange(message.state);
+            this.onStatusChange(message.state, message.gameState);
             break;
-          case MSG_TYPES.ORIENTATION:
+          case MSG_TYPES.ORIENTATION: {
+            const pId = message.playerId || 'default';
             if (message.payload) {
-              this.onOrientation(message.payload.alpha, message.payload.beta, message.payload.gamma);
+              this.onOrientation(pId, message.payload.alpha, message.payload.beta, message.payload.gamma);
             } else {
-              this.onOrientation(message.alpha, message.beta, message.gamma);
+              this.onOrientation(pId, message.alpha, message.beta, message.gamma);
             }
             break;
-          case MSG_TYPES.SHOOT:
-            this.onShoot();
+          }
+          case MSG_TYPES.SHOOT: {
+            const pId = message.playerId || 'default';
+            this.onShoot(pId);
             break;
-          case MSG_TYPES.RECENTER:
-            this.onRecenter();
+          }
+          case MSG_TYPES.RECENTER: {
+            const pId = message.playerId || 'default';
+            this.onRecenter(pId);
+            break;
+          }
+          case MSG_TYPES.PLAYER_CONNECTED:
+            if (this.onPlayerConnected) {
+              this.onPlayerConnected(message.payload);
+            }
+            break;
+          case MSG_TYPES.PLAYER_DISCONNECTED:
+            if (this.onPlayerDisconnected) {
+              this.onPlayerDisconnected(message.playerId);
+            }
+            break;
+          case MSG_TYPES.SETTINGS_UPDATE:
+            if (this.onPlayerSettingsUpdated) {
+              this.onPlayerSettingsUpdated(message.playerId, message.payload.settings);
+            }
+            break;
+          case MSG_TYPES.PLAYER_STATS:
+            if (this.onPlayerStatsUpdated) {
+              this.onPlayerStatsUpdated(message.playerId, message.payload);
+            }
             break;
         }
       } catch (err) {
@@ -114,5 +140,21 @@ export class GameConnection {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify(data));
     }
+  }
+
+  sendStartGame() {
+    this.send({ type: MSG_TYPES.START_GAME });
+  }
+
+  sendPlayerHit(playerId) {
+    this.send({ type: MSG_TYPES.PLAYER_HIT, playerId });
+  }
+
+  sendResetStats() {
+    this.send({ type: MSG_TYPES.RESET_STATS });
+  }
+
+  sendReturnToLobby() {
+    this.send({ type: MSG_TYPES.RETURN_TO_LOBBY });
   }
 }

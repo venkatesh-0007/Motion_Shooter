@@ -19,14 +19,39 @@ export class MobileController {
     this.socket = new WebSocket(WS_URL);
 
     this.socket.onopen = () => {
-      this.socket.send(JSON.stringify({ type: MSG_TYPES.REGISTER_CONTROLLER, sessionId: this.sessionId }));
+      let controllerId = localStorage.getItem('motion_shooter_controller_id');
+      if (!controllerId) {
+        controllerId = 'P-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        localStorage.setItem('motion_shooter_controller_id', controllerId);
+      }
+      this.controllerId = controllerId;
+
+      // Load settings
+      let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false };
+      try {
+        const stored = localStorage.getItem('motion_shooter_settings');
+        if (stored) {
+          settings = { ...settings, ...JSON.parse(stored) };
+        }
+      } catch (e) {
+        console.error('Failed to load settings:', e);
+      }
+
+      this.socket.send(JSON.stringify({ 
+        type: MSG_TYPES.REGISTER_CONTROLLER, 
+        sessionId: this.sessionId,
+        controllerId: this.controllerId,
+        settings: settings
+      }));
     };
 
     this.socket.onmessage = (event) => {
       try {
         const message = JSON.parse(event.data);
         if (message.type === MSG_TYPES.STATUS_UPDATE && this.onStatusChange) {
-          this.onStatusChange(message.state);
+          this.onStatusChange(message.state, message.gameState);
+        } else if (message.type === MSG_TYPES.START_GAME && this.onGameStart) {
+          this.onGameStart();
         }
       } catch (err) {
         console.error('Failed to parse WebSocket message:', err);
@@ -83,6 +108,15 @@ export class MobileController {
   recenter() {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({ type: MSG_TYPES.RECENTER }));
+    }
+  }
+
+  sendSettings(settings) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({
+        type: MSG_TYPES.SETTINGS_UPDATE,
+        payload: { settings }
+      }));
     }
   }
 }

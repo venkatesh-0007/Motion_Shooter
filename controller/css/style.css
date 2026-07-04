@@ -222,20 +222,126 @@ body {
 }
 
 .insecure-warning {
-  background: rgba(235, 77, 75, 0.15);
-  border-bottom: 1px solid rgba(235, 77, 75, 0.3);
+  background: rgba(235, 77, 75, 0.12);
+  border-bottom: 1px solid rgba(235, 77, 75, 0.25);
   color: #ff7675;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   text-align: center;
-  padding: 8px 15px;
-  letter-spacing: 0.5px;
-  z-index: 9;
-  box-shadow: 0 0 10px rgba(235, 77, 75, 0.1);
+  z-index: 100;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
 }
 
 .insecure-warning.hidden {
   display: none !important;
+}
+
+.warning-header {
+  padding: 10px 15px;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning-header:hover {
+  background: rgba(255, 118, 117, 0.05);
+}
+
+.help-trigger {
+  color: #00f2fe;
+  text-decoration: underline;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+.warning-details {
+  padding: 15px 20px 20px;
+  border-top: 1px solid rgba(235, 77, 75, 0.15);
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(5, 7, 15, 0.95);
+}
+
+.warning-details.hidden {
+  display: none !important;
+}
+
+.warning-details p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.step-card {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+.copy-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.copy-row code {
+  flex-grow: 1;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-family: monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.copy-btn {
+  background: #ff7675;
+  color: #05070f;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.copy-btn:active {
+  transform: scale(0.95);
+}
+
+.copy-btn.success {
+  background: #2ed573;
+  color: white;
+}
+
+.step-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin: 0 !important;
 }
 
 /* Settings Toggle Button */

@@ -21,7 +21,30 @@
   
   <!-- Insecure Origin Warning Banner -->
   <div id="insecure-warning" class="insecure-warning hidden">
-    <span>⚠️ Insecure HTTP. Gyro disabled. Drag touchpad to aim.</span>
+    <div id="warning-header-toggle" class="warning-header">
+      <span>⚠️ Insecure Connection: Gyro Aiming Disabled <span class="help-trigger">[Setup Guide]</span></span>
+    </div>
+    <div id="warning-details" class="warning-details hidden">
+      <p>To enable the gyroscope on Chrome mobile, you must treat this HTTP origin as secure:</p>
+      <div class="step-card">
+        <div class="step-title">1. Copy Server Origin</div>
+        <div class="copy-row">
+          <code id="origin-text">http://localhost:3001</code>
+          <button id="copy-origin-btn" class="copy-btn">Copy</button>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-title">2. Open Chrome Flags Link (Copy & Paste in browser)</div>
+        <div class="copy-row">
+          <code id="flags-text">chrome://flags/#unsafely-treat-insecure-origin-as-secure</code>
+          <button id="copy-flags-btn" class="copy-btn">Copy Link</button>
+        </div>
+      </div>
+      <div class="step-card">
+        <div class="step-title">3. Enable & Restart</div>
+        <p class="step-desc">Paste the origin into the field, switch flag to <strong>Enabled</strong>, and tap <strong>Relaunch</strong>.</p>
+      </div>
+    </div>
   </div>
 
   <!-- Main interactive touchpad -->

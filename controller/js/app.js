@@ -316,6 +316,52 @@ function saveSettings() {
 function initSession() {
   loadSettings();
 
+  // Set up insecure origin guide display and copy utilities
+  const originText = document.getElementById('origin-text');
+  if (originText) {
+    originText.textContent = window.location.origin;
+  }
+
+  const warningHeaderToggle = document.getElementById('warning-header-toggle');
+  const warningDetails = document.getElementById('warning-details');
+  if (warningHeaderToggle && warningDetails) {
+    warningHeaderToggle.addEventListener('click', () => {
+      warningDetails.classList.toggle('hidden');
+    });
+  }
+
+  const copyOriginBtn = document.getElementById('copy-origin-btn');
+  if (copyOriginBtn) {
+    copyOriginBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const origin = window.location.origin;
+      navigator.clipboard.writeText(origin).then(() => {
+        copyOriginBtn.textContent = 'Copied! ✅';
+        copyOriginBtn.classList.add('success');
+        setTimeout(() => {
+          copyOriginBtn.textContent = 'Copy';
+          copyOriginBtn.classList.remove('success');
+        }, 2000);
+      });
+    });
+  }
+
+  const copyFlagsBtn = document.getElementById('copy-flags-btn');
+  if (copyFlagsBtn) {
+    copyFlagsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const flagsUrl = 'chrome://flags/#unsafely-treat-insecure-origin-as-secure';
+      navigator.clipboard.writeText(flagsUrl).then(() => {
+        copyFlagsBtn.textContent = 'Copied! ✅';
+        copyFlagsBtn.classList.add('success');
+        setTimeout(() => {
+          copyFlagsBtn.textContent = 'Copy Link';
+          copyFlagsBtn.classList.remove('success');
+        }, 2000);
+      });
+    });
+  }
+
   // Settings range slider listener
   if (settingsSensitivityInput && sensDisplayVal) {
     settingsSensitivityInput.addEventListener('input', (e) => {

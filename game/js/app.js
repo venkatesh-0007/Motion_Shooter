@@ -599,6 +599,9 @@ function startGame() {
   initCanvas();
   updateLeaderboardUI();
 
+  // Notify server and all controllers that the game has started
+  connection.sendStartGame();
+
   // Reset/Start timer loop
   if (timerInterval) clearInterval(timerInterval);
   timerInterval = setInterval(() => {

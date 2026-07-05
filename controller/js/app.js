@@ -41,7 +41,7 @@ const joinSessionBtn = document.getElementById('join-session-btn');
 /**
  * Updates the screen status banner based on WS state and game progress.
  */
-function handleStatusChange(state, gameState) {
+function handleStatusChange(state, gameState, isHead) {
   const isConnectedVal = state === CONNECTION_STATES.CONNECTED;
 
   if (isConnectedVal) {
@@ -54,6 +54,19 @@ function handleStatusChange(state, gameState) {
     if (lobbyOverlay) {
       if (gameState === 'lobby') {
         lobbyOverlay.classList.remove('hidden');
+        
+        // Show/hide start controls based on head status
+        const headControls = document.getElementById('lobby-head-controls');
+        const waitControls = document.getElementById('lobby-wait-controls');
+        if (headControls && waitControls) {
+          if (isHead) {
+            headControls.classList.remove('hidden');
+            waitControls.classList.add('hidden');
+          } else {
+            headControls.classList.add('hidden');
+            waitControls.classList.remove('hidden');
+          }
+        }
       } else {
         lobbyOverlay.classList.add('hidden');
       }
@@ -428,9 +441,55 @@ function initSession() {
     });
   }
 
+  // Mobile Start Game Button click handler
+  const mobileStartBtn = document.getElementById('mobile-start-btn');
+  if (mobileStartBtn) {
+    mobileStartBtn.addEventListener('click', () => {
+      if (connection && isConnected) {
+        connection.sendStartGame();
+      }
+    });
+  }
+
+  // Name prompt workflow modal
+  const namePromptOverlay = document.getElementById('name-prompt-overlay');
+  const promptNameInput = document.getElementById('prompt-name-input');
+  const promptConnectBtn = document.getElementById('prompt-connect-btn');
+
+  function showNamePrompt(onSuccess) {
+    if (namePromptOverlay && promptNameInput && promptConnectBtn) {
+      promptNameInput.value = settings.playerName || 'Player';
+      namePromptOverlay.classList.remove('hidden');
+
+      // Clone button to strip existing listeners
+      const newConnectBtn = promptConnectBtn.cloneNode(true);
+      promptConnectBtn.parentNode.replaceChild(newConnectBtn, promptConnectBtn);
+
+      newConnectBtn.addEventListener('click', () => {
+        const enteredName = promptNameInput.value.trim();
+        if (enteredName.length > 0) {
+          settings.playerName = enteredName;
+          try {
+            localStorage.setItem('motion_shooter_settings', JSON.stringify(settings));
+          } catch (e) {
+            console.error('Failed to save settings:', e);
+          }
+          namePromptOverlay.classList.add('hidden');
+          onSuccess();
+        } else {
+          alert('Please enter a name to join.');
+        }
+      });
+    } else {
+      onSuccess();
+    }
+  }
+
   if (sessionId && sessionId.trim().length > 0) {
     if (joinOverlay) joinOverlay.classList.add('hidden');
-    checkSensors();
+    showNamePrompt(() => {
+      checkSensors();
+    });
   } else {
     if (joinOverlay) joinOverlay.classList.remove('hidden');
     if (joinSessionBtn && joinCodeInput) {
@@ -440,7 +499,9 @@ function initSession() {
           sessionId = val;
           window.history.replaceState(null, '', `?session=${sessionId}`);
           joinOverlay.classList.add('hidden');
-          checkSensors();
+          showNamePrompt(() => {
+            checkSensors();
+          });
         }
       });
     }

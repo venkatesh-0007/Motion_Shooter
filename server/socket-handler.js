@@ -157,14 +157,24 @@ export function handleSocketConnection(ws) {
         case MSG_TYPES.START_GAME:
           if (ws.sessionId && sessions[ws.sessionId]) {
             const session = sessions[ws.sessionId];
-            session.state = 'playing';
             
-            // Forward START_GAME to all controllers
-            session.controllers.forEach(controller => {
-              if (controller.readyState === 1 /* OPEN */) {
-                controller.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
+            // Validate that the sender is indeed the head controller
+            const controllersArray = Array.from(session.controllers);
+            if (controllersArray[0] === ws) {
+              session.state = 'playing';
+              
+              // Forward START_GAME to all controllers
+              session.controllers.forEach(controller => {
+                if (controller.readyState === 1 /* OPEN */) {
+                  controller.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
+                }
+              });
+
+              // Forward START_GAME to the game client
+              if (session.gameSocket && session.gameSocket.readyState === 1 /* OPEN */) {
+                session.gameSocket.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
               }
-            });
+            }
           }
           break;
 
@@ -295,12 +305,16 @@ function sendStatusUpdates(session) {
     }));
   }
 
+  const controllersArray = Array.from(session.controllers);
+  const headController = controllersArray[0];
+
   session.controllers.forEach(controller => {
     if (controller.readyState === 1 /* OPEN */) {
       controller.send(JSON.stringify({ 
         type: MSG_TYPES.STATUS_UPDATE, 
         state,
-        gameState: session.state
+        gameState: session.state,
+        isHead: controller === headController
       }));
     }
   });

@@ -49,7 +49,7 @@ export class MobileController {
       try {
         const message = JSON.parse(event.data);
         if (message.type === MSG_TYPES.STATUS_UPDATE && this.onStatusChange) {
-          this.onStatusChange(message.state, message.gameState);
+          this.onStatusChange(message.state, message.gameState, message.isHead);
         } else if (message.type === MSG_TYPES.START_GAME && this.onGameStart) {
           this.onGameStart();
         }
@@ -117,6 +117,12 @@ export class MobileController {
         type: MSG_TYPES.SETTINGS_UPDATE,
         payload: { settings }
       }));
+    }
+  }
+
+  sendStartGame() {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
     }
   }
 }

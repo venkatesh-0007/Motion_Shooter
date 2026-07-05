@@ -66,6 +66,16 @@
     </div>
   </div>
 
+  <!-- Player Name Prompt Overlay -->
+  <div id="name-prompt-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>Enter Your Name</h2>
+      <p>Choose a name to represent your crosshair in the arena.</p>
+      <input type="text" id="prompt-name-input" class="code-input name-prompt-input" placeholder="Player" maxlength="12" style="margin-bottom: 15px;" />
+      <button id="prompt-connect-btn" class="action-btn">Join Lobby</button>
+    </div>
+  </div>
+
   <!-- Join by Code Overlay -->
   <div id="join-overlay" class="overlay hidden">
     <div class="overlay-card">
@@ -109,7 +119,13 @@
     <div class="overlay-card">
       <h2>MULTIPLAYER LOBBY</h2>
       <p class="status-glow" style="font-size: 18px; margin-bottom: 12px; color: #2ed573;">Connected ✅</p>
-      <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">Waiting for host to start the game...</p>
+      <div id="lobby-head-controls" class="hidden">
+        <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; line-height: 1.6;">You are the <strong>Head Controller</strong>. Tap below to launch the arena once all players are connected.</p>
+        <button id="mobile-start-btn" class="action-btn">Start Game</button>
+      </div>
+      <div id="lobby-wait-controls">
+        <p style="color: var(--text-muted); font-size: 14px; line-height: 1.6;">Waiting for the head controller to start the game...</p>
+      </div>
     </div>
   </div>
 

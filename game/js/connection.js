@@ -67,6 +67,11 @@ export class GameConnection {
             this.onRecenter(pId);
             break;
           }
+          case MSG_TYPES.START_GAME:
+            if (this.onStartGame) {
+              this.onStartGame();
+            }
+            break;
           case MSG_TYPES.PLAYER_CONNECTED:
             if (this.onPlayerConnected) {
               this.onPlayerConnected(message.payload);

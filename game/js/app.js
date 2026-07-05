@@ -510,6 +510,10 @@ connection.onPlayerStatsUpdated = (playerId, statsPayload) => {
   updateLeaderboardUI();
 };
 
+connection.onStartGame = () => {
+  startGame();
+};
+
 // Lobby UI Sync
 function updateLobbyUI() {
   const slots = document.querySelectorAll('.player-slot');
@@ -703,10 +707,6 @@ function returnToLobby() {
 }
 
 // Bind button actions
-const startBtn = document.getElementById('start-game-btn');
-if (startBtn) {
-  startBtn.addEventListener('click', startGame);
-}
 
 const playAgainBtn = document.getElementById('play-again-btn');
 if (playAgainBtn) {

@@ -455,4 +455,11 @@ body {
   cursor: pointer;
 }
 
-
+.name-prompt-input {
+  text-align: center;
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: none !important;
+}

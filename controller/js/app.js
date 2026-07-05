@@ -444,11 +444,17 @@ function initSession() {
   // Mobile Start Game Button click handler
   const mobileStartBtn = document.getElementById('mobile-start-btn');
   if (mobileStartBtn) {
-    mobileStartBtn.addEventListener('click', () => {
+    const handleStart = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
       if (connection && isConnected) {
         connection.sendStartGame();
+      } else {
+        console.warn('[MOBILE START] Cannot start: connection is active?', isConnected);
       }
-    });
+    };
+    mobileStartBtn.addEventListener('click', handleStart);
+    mobileStartBtn.addEventListener('touchstart', handleStart, { passive: false });
   }
 
   // Name prompt workflow modal

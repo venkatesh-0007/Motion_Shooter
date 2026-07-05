@@ -313,6 +313,34 @@ function saveSettings() {
   }
 }
 
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    return navigator.clipboard.writeText(text);
+  } else {
+    // Insecure HTTP contexts clipboard fallback
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.top = '-9999px';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    try {
+      const successful = document.execCommand('copy');
+      document.body.removeChild(textArea);
+      if (successful) {
+        return Promise.resolve();
+      } else {
+        return Promise.reject(new Error('Fallback copy failed'));
+      }
+    } catch (err) {
+      document.body.removeChild(textArea);
+      return Promise.reject(err);
+    }
+  }
+}
+
 function initSession() {
   loadSettings();
 
@@ -335,13 +363,16 @@ function initSession() {
     copyOriginBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const origin = window.location.origin;
-      navigator.clipboard.writeText(origin).then(() => {
+      copyToClipboard(origin).then(() => {
         copyOriginBtn.textContent = 'Copied! ✅';
         copyOriginBtn.classList.add('success');
         setTimeout(() => {
           copyOriginBtn.textContent = 'Copy';
           copyOriginBtn.classList.remove('success');
         }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+        alert('Failed to copy. Please manually copy the origin.');
       });
     });
   }
@@ -350,14 +381,27 @@ function initSession() {
   if (copyFlagsBtn) {
     copyFlagsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      const flagsUrl = 'chrome://flags/#unsafely-treat-insecure-origin-as-secure';
-      navigator.clipboard.writeText(flagsUrl).then(() => {
-        copyFlagsBtn.textContent = 'Copied! ✅';
+      const origin = window.location.origin;
+      copyToClipboard(origin).then(() => {
+        copyFlagsBtn.textContent = 'Origin Copied! ✅';
         copyFlagsBtn.classList.add('success');
+        
         setTimeout(() => {
           copyFlagsBtn.textContent = 'Copy Link';
           copyFlagsBtn.classList.remove('success');
-        }, 2000);
+          
+          // Attempt redirect to chrome://flags
+          try {
+            window.location.href = 'chrome://flags/#unsafely-treat-insecure-origin-as-secure';
+          } catch (err) {
+            console.error('Redirect failed:', err);
+          }
+          
+          alert('Server origin (' + origin + ') copied to clipboard!\n\nNote: Browsers block direct redirects to chrome://flags for security. Please paste chrome://flags in your browser address bar to enable the flag.');
+        }, 800);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+        alert('Failed to copy. Please manually copy the origin.');
       });
     });
   }

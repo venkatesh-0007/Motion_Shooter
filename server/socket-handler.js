@@ -160,8 +160,13 @@ export function handleSocketConnection(ws) {
             
             // Validate that the sender is indeed the head controller
             const controllersArray = Array.from(session.controllers);
-            if (controllersArray[0] === ws) {
+            const isHead = controllersArray[0] === ws;
+            
+            console.log(`[SERVER MSG_TYPES.START_GAME] Received message. registeredAs: ${registeredAs}, isHead: ${isHead}, session.controllers.size: ${session.controllers.size}`);
+            
+            if (isHead) {
               session.state = 'playing';
+              console.log(`[SERVER MSG_TYPES.START_GAME] Head controller triggered game start. Broadcasting to all clients.`);
               
               // Forward START_GAME to all controllers
               session.controllers.forEach(controller => {
@@ -174,6 +179,8 @@ export function handleSocketConnection(ws) {
               if (session.gameSocket && session.gameSocket.readyState === 1 /* OPEN */) {
                 session.gameSocket.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
               }
+            } else {
+              console.warn(`[SERVER MSG_TYPES.START_GAME] Ignored start command. Sender is not the head controller.`);
             }
           }
           break;

@@ -18,7 +18,13 @@
       <button id="settings-toggle-btn" class="settings-toggle-btn">⚙️</button>
     </div>
   </header>
-  
+
+  <!-- Weapon Switching Control -->
+  <div class="weapon-selector-container">
+    <button id="weapon-btn-pistol" class="weapon-btn active" data-weapon="pistol">PISTOL</button>
+    <button id="weapon-btn-smg" class="weapon-btn" data-weapon="smg">SMG</button>
+  </div>
+
   <!-- Insecure Origin Warning Banner -->
   <div id="insecure-warning" class="insecure-warning hidden">
     <div id="warning-header-toggle" class="warning-header">
@@ -50,12 +56,19 @@
   <!-- Main interactive touchpad -->
   <main id="touch-pad" class="touch-pad">
     <div class="hud-center">
-      <button id="recenter-btn" class="recenter-btn">
-        <span class="icon">🎯</span> Recenter
-      </button>
-      <p class="instruction">Tap anywhere else to SHOOT</p>
+      <p class="instruction">Drag here to aim</p>
     </div>
   </main>
+
+  <!-- Dedicated Shoot Control -->
+  <div class="shoot-container">
+    <button id="shoot-btn" class="shoot-btn">FIRE</button>
+  </div>
+
+  <!-- Repositioned Recenter Control -->
+  <button id="recenter-btn" class="recenter-btn bottom-recenter">
+    <span class="icon">🎯</span> Recenter
+  </button>
 
   <!-- iOS Permission Overlay -->
   <div id="permission-overlay" class="overlay hidden">

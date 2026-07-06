@@ -463,3 +463,91 @@ body {
   letter-spacing: 0.5px;
   text-transform: none !important;
 }
+
+/* Weapon Selector Styles */
+.weapon-selector-container {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 12px 10px;
+  background: rgba(11, 13, 25, 0.9);
+  border-bottom: 1px solid rgba(0, 242, 254, 0.15);
+  z-index: 10;
+}
+
+.weapon-btn {
+  flex: 1;
+  max-width: 140px;
+  background: rgba(22, 28, 45, 0.6);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  color: var(--text-muted);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 10px 0;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.weapon-btn:active {
+  transform: scale(0.95);
+}
+
+.weapon-btn.active {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 242, 254, 0.05));
+  border-color: var(--glow-cyan);
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.4), inset 0 0 6px rgba(0, 242, 254, 0.2);
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+}
+
+/* Shoot Button Styles */
+.shoot-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 0;
+  background: linear-gradient(to top, rgba(7, 9, 21, 0.95) 0%, rgba(11, 13, 25, 0.8) 100%);
+  border-top: 1px solid rgba(255, 0, 127, 0.1);
+  z-index: 10;
+}
+
+.shoot-btn {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 0, 127, 0.85) 0%, rgba(150, 0, 70, 0.95) 100%);
+  border: 4px solid #ff007f;
+  color: white;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  cursor: pointer;
+  outline: none;
+  box-shadow: 0 0 25px rgba(255, 0, 127, 0.6), inset 0 0 15px rgba(255, 255, 255, 0.3);
+  transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.shoot-btn:active, .shoot-btn.active {
+  transform: scale(0.9);
+  background: radial-gradient(circle, rgba(255, 0, 127, 0.95) 0%, rgba(200, 0, 100, 1) 100%);
+  box-shadow: 0 0 35px rgba(255, 0, 127, 0.9), inset 0 0 10px rgba(0, 0, 0, 0.5);
+  border-color: #ffffff;
+}
+
+/* Bottom Recenter Overrides */
+.bottom-recenter {
+  margin: 0 auto 10px auto;
+  align-self: center;
+  padding: 8px 20px;
+  font-size: 13px;
+  border-radius: 30px;
+  margin-bottom: calc(10px + env(safe-area-inset-bottom));
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.2), inset 0 0 10px rgba(0, 242, 254, 0.05);
+  z-index: 10;
+}

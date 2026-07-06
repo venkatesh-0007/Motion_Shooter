@@ -18,7 +18,7 @@ export class PlayerManager {
    * @param {boolean} invertX Invert horizontal control.
    * @param {boolean} invertY Invert vertical control.
    */
-  addPlayer(sessionId, playerName = 'Player', sensitivity = 1.0, invertX = false, invertY = false) {
+  addPlayer(sessionId, playerName = 'Player', sensitivity = 1.0, invertX = false, invertY = false, currentWeapon = 'pistol') {
     // 1. Assign or find index for color consistency
     let index = this.playerIndices.indexOf(sessionId);
     if (index === -1) {
@@ -40,6 +40,7 @@ export class PlayerManager {
         sensitivity,
         invertX,
         invertY,
+        currentWeapon,
         connected: true,
         ready: false,
         orientation: { alpha: 0, beta: 0, gamma: 0 },
@@ -67,6 +68,7 @@ export class PlayerManager {
       player.sensitivity = sensitivity;
       player.invertX = invertX;
       player.invertY = invertY;
+      if (currentWeapon !== undefined) player.currentWeapon = currentWeapon;
       player.connected = true;
       player.lastSeen = Date.now();
       return player;
@@ -127,6 +129,18 @@ export class PlayerManager {
       if (settings.sensitivity !== undefined) player.sensitivity = settings.sensitivity;
       if (settings.invertX !== undefined) player.invertX = settings.invertX;
       if (settings.invertY !== undefined) player.invertY = settings.invertY;
+      if (settings.currentWeapon !== undefined) player.currentWeapon = settings.currentWeapon;
+      player.lastSeen = Date.now();
+    }
+  }
+
+  /**
+   * Live updates player weapon selection.
+   */
+  updateWeapon(sessionId, weapon) {
+    const player = this.players.get(sessionId);
+    if (player) {
+      player.currentWeapon = weapon;
       player.lastSeen = Date.now();
     }
   }

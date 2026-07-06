@@ -487,7 +487,8 @@ connection.onPlayerConnected = (playerData) => {
     playerData.playerName, 
     playerData.sensitivity, 
     playerData.invertX, 
-    playerData.invertY
+    playerData.invertY,
+    playerData.currentWeapon
   );
   updateLobbyUI();
   updateLeaderboardUI();
@@ -502,6 +503,11 @@ connection.onPlayerDisconnected = (playerId) => {
 connection.onPlayerSettingsUpdated = (playerId, settings) => {
   playerManager.updateSettings(playerId, settings);
   updateLobbyUI();
+  updateLeaderboardUI();
+};
+
+connection.onPlayerWeaponChanged = (playerId, weapon) => {
+  playerManager.updateWeapon(playerId, weapon);
   updateLeaderboardUI();
 };
 
@@ -562,10 +568,12 @@ function updateLeaderboardUI() {
     entry.className = 'leaderboard-entry';
     entry.style.transform = `translateY(${index * 52}px)`;
 
+    const weaponName = (player.currentWeapon || 'pistol').toUpperCase();
     entry.innerHTML = `
       <div class="leaderboard-entry-left">
         <span class="player-dot" style="color: ${player.crosshair.color}; background: ${player.crosshair.color};"></span>
         <span class="leaderboard-name">${player.playerName}</span>
+        <span class="hud-weapon" style="font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.4); margin-left: 8px; letter-spacing: 0.5px;">[${weaponName}]</span>
       </div>
       <div class="score-dots"></div>
       <span class="score-val">${player.score}</span>

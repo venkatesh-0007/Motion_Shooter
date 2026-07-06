@@ -1,5 +1,10 @@
-import { CONNECTION_STATES } from '/shared/constants.js';
+import { CONNECTION_STATES, WEAPONS } from '/shared/constants.js';
 import { MobileController } from '/sdk/mobile.js';
+
+// Firing state variables
+let isFiring = false;
+let fireIntervalId = null;
+let lastFireTime = 0;
 
 // DOM Elements
 const statusIndicator = document.getElementById('status-indicator');
@@ -27,7 +32,7 @@ let startTouch = null;
 let isDragging = false;
 
 // Local Settings State
-let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false };
+let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'pistol' };
 
 // Session extraction
 const urlParams = new URLSearchParams(window.location.search);
@@ -73,6 +78,7 @@ function handleStatusChange(state, gameState, isHead) {
     }
   } else {
     isConnected = false;
+    stopFiring();
     statusIndicator.textContent = 'Waiting for game client...';
     statusIndicator.className = 'status waiting';
 
@@ -197,18 +203,95 @@ function triggerRecenter() {
   connection.recenter();
 }
 
-/**
- * Triggers a shoot event and flashes the background.
- */
-function triggerShoot() {
-  if (!isConnected) return;
-  connection.sendShoot();
+function updateWeaponSelectorUI() {
+  const activeWeapon = settings.currentWeapon || 'pistol';
+  const pistolBtn = document.getElementById('weapon-btn-pistol');
+  const smgBtn = document.getElementById('weapon-btn-smg');
+  
+  if (pistolBtn && smgBtn) {
+    if (activeWeapon === 'smg') {
+      pistolBtn.classList.remove('active');
+      smgBtn.classList.add('active');
+    } else {
+      pistolBtn.classList.add('active');
+      smgBtn.classList.remove('active');
+    }
+  }
+}
 
-  // Visual firing feedback
-  touchPad.classList.add('firing');
-  setTimeout(() => {
-    touchPad.classList.remove('firing');
-  }, 100);
+function selectWeapon(weaponName) {
+  if (settings.currentWeapon === weaponName) return;
+  
+  stopFiring();
+  
+  settings.currentWeapon = weaponName;
+  try {
+    localStorage.setItem('motion_shooter_settings', JSON.stringify(settings));
+  } catch (e) {
+    console.error('Failed to save settings:', e);
+  }
+  
+  updateWeaponSelectorUI();
+  
+  if (connection && isConnected) {
+    connection.sendWeaponChange(weaponName);
+  }
+}
+
+function startFiring(e) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  
+  if (isFiring) return;
+  const activeWeapon = WEAPONS[settings.currentWeapon || 'pistol'];
+
+  if (activeWeapon.fireMode === 'auto') {
+    isFiring = true;
+    
+    const shootBtn = document.getElementById('shoot-btn');
+    if (shootBtn) shootBtn.classList.add('active');
+
+    fireSingleShot();
+    
+    fireIntervalId = setInterval(() => {
+      fireSingleShot();
+    }, activeWeapon.fireInterval);
+  } else {
+    const now = Date.now();
+    if (now - lastFireTime >= activeWeapon.fireInterval) {
+      fireSingleShot();
+      lastFireTime = now;
+    }
+  }
+}
+
+function stopFiring(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+
+  isFiring = false;
+  if (fireIntervalId) {
+    clearInterval(fireIntervalId);
+    fireIntervalId = null;
+  }
+  
+  const shootBtn = document.getElementById('shoot-btn');
+  if (shootBtn) shootBtn.classList.remove('active');
+}
+
+function fireSingleShot() {
+  if (connection && isConnected) {
+    connection.sendShoot();
+    
+    touchPad.classList.add('firing');
+    setTimeout(() => {
+      touchPad.classList.remove('firing');
+    }, 100);
+  }
 }
 
 // Attach Touchpad Events (Ensuring Recenter clicks are isolated)
@@ -269,14 +352,6 @@ touchPad.addEventListener('touchmove', (e) => {
 
 touchPad.addEventListener('touchend', (e) => {
   e.preventDefault();
-  if (!startTouch) return;
-
-  const elapsed = Date.now() - startTouch.time;
-  // If it was a quick touch and they didn't drag, treat it as a trigger shoot
-  if (!isDragging && elapsed < 250) {
-    triggerShoot();
-  }
-
   startTouch = null;
   isDragging = false;
 }, { passive: false });
@@ -302,6 +377,7 @@ function loadSettings() {
   if (invXInput) invXInput.checked = settings.invertX;
   const invYInput = document.getElementById('settings-invert-y');
   if (invYInput) invYInput.checked = settings.invertY;
+  updateWeaponSelectorUI();
 }
 
 function saveSettings() {
@@ -512,6 +588,44 @@ function initSession() {
       });
     }
   }
+
+  // Bind Weapon Selector Buttons
+  const pistolBtn = document.getElementById('weapon-btn-pistol');
+  const smgBtn = document.getElementById('weapon-btn-smg');
+  if (pistolBtn) {
+    pistolBtn.addEventListener('click', () => selectWeapon('pistol'));
+    pistolBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      selectWeapon('pistol');
+    }, { passive: false });
+  }
+  if (smgBtn) {
+    smgBtn.addEventListener('click', () => selectWeapon('smg'));
+    smgBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      selectWeapon('smg');
+    }, { passive: false });
+  }
+
+  // Bind Shoot Button
+  const shootBtn = document.getElementById('shoot-btn');
+  if (shootBtn) {
+    shootBtn.addEventListener('touchstart', startFiring, { passive: false });
+    shootBtn.addEventListener('touchend', stopFiring, { passive: false });
+    shootBtn.addEventListener('touchcancel', stopFiring, { passive: false });
+    
+    shootBtn.addEventListener('mousedown', startFiring);
+    shootBtn.addEventListener('mouseup', stopFiring);
+    shootBtn.addEventListener('mouseleave', stopFiring);
+  }
+
+  // Bind Global safety focus releases
+  window.addEventListener('blur', stopFiring);
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopFiring();
+    }
+  });
 }
 
 // Start initialization flow

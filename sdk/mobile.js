@@ -27,7 +27,7 @@ export class MobileController {
       this.controllerId = controllerId;
 
       // Load settings
-      let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false };
+      let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'pistol' };
       try {
         const stored = localStorage.getItem('motion_shooter_settings');
         if (stored) {
@@ -125,4 +125,14 @@ export class MobileController {
       this.socket.send(JSON.stringify({ type: MSG_TYPES.START_GAME }));
     }
   }
+
+  sendWeaponChange(weapon) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({
+        type: MSG_TYPES.WEAPON_CHANGE,
+        weapon
+      }));
+    }
+  }
 }
+

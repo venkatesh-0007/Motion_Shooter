@@ -1,4 +1,4 @@
-import { MSG_TYPES, CONNECTION_STATES } from '../shared/constants.js';
+import { MSG_TYPES, CONNECTION_STATES, WEAPONS } from '../shared/constants.js';
 
 const sessions = {};
 
@@ -27,6 +27,7 @@ function notifyGameOfPlayerChange(session, controllerSocket, status) {
         sensitivity: settings.sensitivity !== undefined ? settings.sensitivity : 1.0,
         invertX: settings.invertX || false,
         invertY: settings.invertY || false,
+        currentWeapon: settings.currentWeapon || 'pistol',
         connected: status === 'connected',
         ready: false,
         orientation: { alpha: 0, beta: 0, gamma: 0 },
@@ -133,6 +134,28 @@ export function handleSocketConnection(ws) {
                 type: MSG_TYPES.RECENTER,
                 playerId: ws.controllerId
               }));
+            }
+          }
+          break;
+
+        case MSG_TYPES.WEAPON_CHANGE:
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const newWeapon = message.weapon;
+            if (newWeapon && WEAPONS[newWeapon]) {
+              ws.settings = ws.settings || {};
+              ws.settings.currentWeapon = newWeapon;
+              
+              // Forward weapon change to game client
+              const gameSocket = sessions[ws.sessionId].gameSocket;
+              if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+                gameSocket.send(JSON.stringify({
+                  type: MSG_TYPES.WEAPON_CHANGE,
+                  playerId: ws.controllerId,
+                  payload: {
+                    weapon: newWeapon
+                  }
+                }));
+              }
             }
           }
           break;

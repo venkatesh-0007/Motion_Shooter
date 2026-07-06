@@ -72,6 +72,11 @@ export class GameConnection {
               this.onStartGame();
             }
             break;
+          case MSG_TYPES.WEAPON_CHANGE:
+            if (this.onPlayerWeaponChanged) {
+              this.onPlayerWeaponChanged(message.playerId, message.payload.weapon);
+            }
+            break;
           case MSG_TYPES.PLAYER_CONNECTED:
             if (this.onPlayerConnected) {
               this.onPlayerConnected(message.payload);

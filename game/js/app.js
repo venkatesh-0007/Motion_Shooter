@@ -234,23 +234,23 @@ function drawWalkingRobot(target) {
   
   const walkSwing = Math.sin(target.walkPhase) * 0.35;
   const armSwing = Math.cos(target.walkPhase) * 0.4;
+  const bobY = Math.abs(Math.sin(target.walkPhase * 2)) * 0.04;
 
   ctx.save();
   ctx.globalAlpha = target.opacity;
-  ctx.shadowBlur = 10;
+  ctx.shadowBlur = 12;
   
   // Flashing red when damaged, otherwise target color
   const color = target.flashTime > Date.now() ? '#ff3333' : target.color;
   ctx.shadowColor = color;
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2.2;
 
-  // Draw 3D joints
-  // 1. Torso Box
-  const tTopL = project(target.x - 0.2, target.y - 0.7, target.z);
-  const tTopR = project(target.x + 0.2, target.y - 0.7, target.z);
-  const tBotL = project(target.x - 0.15, target.y - 0.2, target.z);
-  const tBotR = project(target.x + 0.15, target.y - 0.2, target.z);
+  // 1. Draw Torso Box with bobbing height
+  const tTopL = project(target.x - 0.22, target.y - 0.7 + bobY, target.z);
+  const tTopR = project(target.x + 0.22, target.y - 0.7 + bobY, target.z);
+  const tBotL = project(target.x - 0.16, target.y - 0.22 + bobY, target.z);
+  const tBotR = project(target.x + 0.16, target.y - 0.22 + bobY, target.z);
 
   if (tTopL && tTopR && tBotL && tBotR) {
     ctx.beginPath();
@@ -261,16 +261,71 @@ function drawWalkingRobot(target) {
     ctx.closePath();
     ctx.stroke();
 
-    // Fill Torso semi-transparent
     ctx.fillStyle = 'rgba(0, 242, 254, 0.04)';
     ctx.fill();
+
+    // 2. Shoulder Pads (Pauldrons)
+    const pL1 = project(target.x - 0.26, target.y - 0.74 + bobY, target.z);
+    const pL2 = project(target.x - 0.18, target.y - 0.66 + bobY, target.z);
+    if (pL1 && pL2) {
+      ctx.strokeRect(pL1.x, pL1.y, pL2.x - pL1.x, pL2.y - pL1.y);
+    }
+    const pR1 = project(target.x + 0.18, target.y - 0.74 + bobY, target.z);
+    const pR2 = project(target.x + 0.26, target.y - 0.66 + bobY, target.z);
+    if (pR1 && pR2) {
+      ctx.strokeRect(pR1.x, pR1.y, pR2.x - pR1.x, pR2.y - pR1.y);
+    }
+
+    // 3. Glowing Chest Reactor Core
+    const reactor = project(target.x, target.y - 0.46 + bobY, target.z);
+    if (reactor) {
+      ctx.beginPath();
+      ctx.arc(reactor.x, reactor.y, 0.05 * reactor.scale, 0, Math.PI * 2);
+      ctx.fillStyle = '#00f2fe';
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.strokeStyle = color; // restore color
+      ctx.lineWidth = 2.2;
+    }
   }
 
-  // 2. Head (Cube or circle)
-  const hCenter = project(target.x, target.y - 0.95, target.z);
+  // 4. Head & Helmet Details (Cube or circle)
+  const hCenter = project(target.x, target.y - 0.95 + bobY, target.z);
   if (hCenter) {
     const headRad = 0.12 * hCenter.scale;
     
+    // Helmet Antenna
+    const antTop = project(target.x, target.y - 1.15 + bobY, target.z);
+    if (antTop) {
+      ctx.beginPath();
+      ctx.moveTo(hCenter.x, hCenter.y - headRad);
+      ctx.lineTo(antTop.x, antTop.y);
+      ctx.stroke();
+
+      // Antenna tip dot
+      ctx.beginPath();
+      ctx.arc(antTop.x, antTop.y, 2, 0, Math.PI * 2);
+      ctx.fillStyle = '#ff007f';
+      ctx.fill();
+    }
+
+    // Side helmet vents
+    const ventL = project(target.x - 0.16, target.y - 0.95 + bobY, target.z);
+    const ventR = project(target.x + 0.16, target.y - 0.95 + bobY, target.z);
+    if (ventL && ventR) {
+      ctx.beginPath();
+      ctx.moveTo(ventL.x, ventL.y);
+      ctx.lineTo(hCenter.x - headRad, hCenter.y);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(ventR.x, ventR.y);
+      ctx.lineTo(hCenter.x + headRad, hCenter.y);
+      ctx.stroke();
+    }
+
     // Draw outer head circle
     ctx.beginPath();
     ctx.arc(hCenter.x, hCenter.y, headRad, 0, Math.PI * 2);
@@ -285,49 +340,127 @@ function drawWalkingRobot(target) {
     ctx.stroke();
 
     ctx.strokeStyle = color; // restore color
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.2;
   }
 
-  // 3. Left Arm (Swings)
-  const shoulderL = project(target.x - 0.22, target.y - 0.65, target.z);
-  const handL = project(target.x - 0.35, target.y - 0.45 + armSwing * 0.1, target.z - armSwing * 0.5);
-  if (shoulderL && handL) {
+  // 5. Left Arm (Segmented Hinging joints: Shoulder -> Elbow -> Hand)
+  const shoulderL = project(target.x - 0.22, target.y - 0.65 + bobY, target.z);
+  const handL = project(target.x - 0.35, target.y - 0.45 + armSwing * 0.08, target.z - armSwing * 0.5);
+  // Calculate naturally bent elbow position
+  const elbowL = project(
+    (target.x - 0.22 + target.x - 0.35) / 2 - 0.04,
+    (target.y - 0.65 + bobY + target.y - 0.45) / 2 + 0.05,
+    (target.z + target.z - armSwing * 0.5) / 2 - 0.08 * Math.sin(target.walkPhase)
+  );
+
+  if (shoulderL && elbowL && handL) {
     ctx.beginPath();
     ctx.moveTo(shoulderL.x, shoulderL.y);
+    ctx.lineTo(elbowL.x, elbowL.y);
     ctx.lineTo(handL.x, handL.y);
     ctx.stroke();
+
+    // Draw joint nodes
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(elbowL.x, elbowL.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // 4. Right Arm (Swings opposite)
-  const shoulderR = project(target.x + 0.22, target.y - 0.65, target.z);
-  const handR = project(target.x + 0.35, target.y - 0.45 - armSwing * 0.1, target.z + armSwing * 0.5);
-  if (shoulderR && handR) {
+  // 6. Right Arm (Segmented: Shoulder -> Elbow -> Hand)
+  const shoulderR = project(target.x + 0.22, target.y - 0.65 + bobY, target.z);
+  const handR = project(target.x + 0.35, target.y - 0.45 - armSwing * 0.08, target.z + armSwing * 0.5);
+  const elbowR = project(
+    (target.x + 0.22 + target.x + 0.35) / 2 + 0.04,
+    (target.y - 0.65 + bobY + target.y - 0.45) / 2 + 0.05,
+    (target.z + target.z + armSwing * 0.5) / 2 + 0.08 * Math.sin(target.walkPhase)
+  );
+
+  if (shoulderR && elbowR && handR) {
     ctx.beginPath();
     ctx.moveTo(shoulderR.x, shoulderR.y);
+    ctx.lineTo(elbowR.x, elbowR.y);
     ctx.lineTo(handR.x, handR.y);
     ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(elbowR.x, elbowR.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
   }
 
-  // 5. Left Leg (Swings back/forth)
-  const footL = project(target.x - 0.14 + walkSwing * 0.1, target.y + 0.1, target.z + walkSwing * 0.6);
-  if (tBotL && footL) {
+  // 7. Left Leg (Segmented Hinging joints: Hip -> Knee -> Foot)
+  const footL = project(target.x - 0.14 + walkSwing * 0.1, target.y + 0.12, target.z + walkSwing * 0.6);
+  const kneeL = project(
+    (target.x - 0.16 + (target.x - 0.14 + walkSwing * 0.1)) / 2 - 0.04,
+    (target.y - 0.22 + bobY + target.y + 0.12) / 2 + 0.04,
+    (target.z + (target.z + walkSwing * 0.6)) / 2 + 0.08 * Math.cos(target.walkPhase)
+  );
+
+  if (tBotL && kneeL && footL) {
     ctx.beginPath();
     ctx.moveTo(tBotL.x, tBotL.y);
+    ctx.lineTo(kneeL.x, kneeL.y);
     ctx.lineTo(footL.x, footL.y);
     ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(kneeL.x, kneeL.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Thruster exhaust spark
+    if (Math.random() < 0.18) {
+      particles.push({
+        x: footL.x + (Math.random() - 0.5) * 6,
+        y: footL.y + 2,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: 1.0 + Math.random() * 1.5,
+        radius: 1.0 + Math.random() * 1.5,
+        color: 'rgba(0, 242, 254, 0.45)',
+        alpha: 0.8,
+        decay: 0.03
+      });
+    }
   }
 
-  // 6. Right Leg (Swings opposite)
-  const footR = project(target.x + 0.14 - walkSwing * 0.1, target.y + 0.1, target.z - walkSwing * 0.6);
-  if (tBotR && footR) {
+  // 8. Right Leg (Segmented: Hip -> Knee -> Foot)
+  const footR = project(target.x + 0.14 - walkSwing * 0.1, target.y + 0.12, target.z - walkSwing * 0.6);
+  const kneeR = project(
+    (target.x + 0.16 + (target.x + 0.14 - walkSwing * 0.1)) / 2 + 0.04,
+    (target.y - 0.22 + bobY + target.y + 0.12) / 2 + 0.04,
+    (target.z + (target.z - walkSwing * 0.6)) / 2 - 0.08 * Math.cos(target.walkPhase)
+  );
+
+  if (tBotR && kneeR && footR) {
     ctx.beginPath();
     ctx.moveTo(tBotR.x, tBotR.y);
+    ctx.lineTo(kneeR.x, kneeR.y);
     ctx.lineTo(footR.x, footR.y);
     ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(kneeR.x, kneeR.y, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Thruster exhaust spark
+    if (Math.random() < 0.18) {
+      particles.push({
+        x: footR.x + (Math.random() - 0.5) * 6,
+        y: footR.y + 2,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: 1.0 + Math.random() * 1.5,
+        radius: 1.0 + Math.random() * 1.5,
+        color: 'rgba(0, 242, 254, 0.45)',
+        alpha: 0.8,
+        decay: 0.03
+      });
+    }
   }
 
-  // 7. Draw floating Health Bar above head
-  const hBar = project(target.x, target.y - 1.25, target.z);
+  // 9. Draw floating Health Bar above head
+  const hBar = project(target.x, target.y - 1.25 + bobY, target.z);
   if (hBar) {
     const barWidth = 35;
     const barHeight = 4;

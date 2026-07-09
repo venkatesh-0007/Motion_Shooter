@@ -27,7 +27,7 @@ export class MobileController {
       this.controllerId = controllerId;
 
       // Load settings
-      let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'pistol' };
+      let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'plasma' };
       try {
         const stored = localStorage.getItem('motion_shooter_settings');
         if (stored) {
@@ -35,6 +35,11 @@ export class MobileController {
         }
       } catch (e) {
         console.error('Failed to load settings:', e);
+      }
+
+      // Sanitise legacy weapons to prevent crashing
+      if (settings.currentWeapon === 'pistol' || settings.currentWeapon === 'smg') {
+        settings.currentWeapon = 'plasma';
       }
 
       this.socket.send(JSON.stringify({ 
@@ -132,6 +137,12 @@ export class MobileController {
         type: MSG_TYPES.WEAPON_CHANGE,
         weapon
       }));
+    }
+  }
+
+  send(data) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify(data));
     }
   }
 }

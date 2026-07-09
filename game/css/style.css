@@ -743,5 +743,58 @@ body {
   transform: translateY(1px);
 }
 
+/* Map Selection Panel */
+.map-selection-panel {
+  width: 100%;
+  margin-top: 15px;
+  background: rgba(22, 28, 45, 0.4);
+  border: 1px solid var(--border-glow);
+  border-radius: 12px;
+  padding: 15px;
+  text-align: center;
+}
+
+.map-selection-panel .panel-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--glow-cyan);
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+
+.map-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.map-btn {
+  padding: 10px 15px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+  transition: all 0.25s ease;
+}
+
+.map-btn:hover {
+  background: rgba(0, 242, 254, 0.03);
+  color: white;
+  border-color: rgba(0, 242, 254, 0.2);
+}
+
+.map-btn.active {
+  background: rgba(0, 242, 254, 0.08);
+  border-color: var(--glow-cyan);
+  color: var(--glow-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.15);
+}
+
 
 

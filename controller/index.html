@@ -21,8 +21,9 @@
 
   <!-- Weapon Switching Control -->
   <div class="weapon-selector-container">
-    <button id="weapon-btn-pistol" class="weapon-btn active" data-weapon="pistol">PISTOL</button>
-    <button id="weapon-btn-smg" class="weapon-btn" data-weapon="smg">SMG</button>
+    <button id="weapon-btn-plasma" class="weapon-btn active" data-weapon="plasma">DISRUPTER</button>
+    <button id="weapon-btn-laser" class="weapon-btn" data-weapon="laser">REPEATER</button>
+    <button id="weapon-btn-railgun" class="weapon-btn" data-weapon="railgun">RAILGUN</button>
   </div>
 
   <!-- Insecure Origin Warning Banner -->
@@ -63,6 +64,12 @@
   <!-- Dedicated Shoot Control -->
   <div class="shoot-container">
     <button id="shoot-btn" class="shoot-btn">FIRE</button>
+  </div>
+
+  <!-- Charging Progress Bar -->
+  <div id="charge-bar-container" class="charge-bar-container hidden">
+    <div id="charge-bar-progress" class="charge-bar-progress"></div>
+    <div class="charge-bar-text">CHARGING MEGA-BEAM...</div>
   </div>
 
   <!-- Repositioned Recenter Control -->

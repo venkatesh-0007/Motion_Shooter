@@ -31,8 +31,14 @@ let simulatedOrientation = { alpha: 0, beta: 0, gamma: 0 };
 let startTouch = null;
 let isDragging = false;
 
+// Power Attack / Charging State
+let chargeTimer = null;
+let chargeProgress = 0;
+let chargeStartTime = 0;
+const CHARGE_DURATION = 800; // 800ms for full charge
+
 // Local Settings State
-let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'pistol' };
+let settings = { playerName: 'Player', sensitivity: 1.0, invertX: false, invertY: false, currentWeapon: 'plasma' };
 
 // Session extraction
 const urlParams = new URLSearchParams(window.location.search);
@@ -204,17 +210,22 @@ function triggerRecenter() {
 }
 
 function updateWeaponSelectorUI() {
-  const activeWeapon = settings.currentWeapon || 'pistol';
-  const pistolBtn = document.getElementById('weapon-btn-pistol');
-  const smgBtn = document.getElementById('weapon-btn-smg');
+  const activeWeapon = settings.currentWeapon || 'plasma';
+  const plasmaBtn = document.getElementById('weapon-btn-plasma');
+  const laserBtn = document.getElementById('weapon-btn-laser');
+  const railgunBtn = document.getElementById('weapon-btn-railgun');
   
-  if (pistolBtn && smgBtn) {
-    if (activeWeapon === 'smg') {
-      pistolBtn.classList.remove('active');
-      smgBtn.classList.add('active');
+  if (plasmaBtn && laserBtn && railgunBtn) {
+    plasmaBtn.classList.remove('active');
+    laserBtn.classList.remove('active');
+    railgunBtn.classList.remove('active');
+    
+    if (activeWeapon === 'laser') {
+      laserBtn.classList.add('active');
+    } else if (activeWeapon === 'railgun') {
+      railgunBtn.classList.add('active');
     } else {
-      pistolBtn.classList.add('active');
-      smgBtn.classList.remove('active');
+      plasmaBtn.classList.add('active');
     }
   }
 }
@@ -223,6 +234,7 @@ function selectWeapon(weaponName) {
   if (settings.currentWeapon === weaponName) return;
   
   stopFiring();
+  stopCharging();
   
   settings.currentWeapon = weaponName;
   try {
@@ -238,21 +250,74 @@ function selectWeapon(weaponName) {
   }
 }
 
+function startCharging() {
+  if (chargeTimer) clearInterval(chargeTimer);
+  chargeProgress = 0;
+  chargeStartTime = Date.now();
+  
+  const chargeBar = document.getElementById('charge-bar-container');
+  const progressFill = document.getElementById('charge-bar-progress');
+  if (chargeBar) chargeBar.classList.remove('hidden');
+
+  chargeTimer = setInterval(() => {
+    const elapsed = Date.now() - chargeStartTime;
+    chargeProgress = Math.min(1.0, elapsed / CHARGE_DURATION);
+    
+    if (progressFill) {
+      progressFill.style.width = `${chargeProgress * 100}%`;
+    }
+
+    if (connection && isConnected) {
+      connection.send({
+        type: MSG_TYPES.CHARGE_UPDATE,
+        payload: { charge: chargeProgress }
+      });
+    }
+
+    if (chargeProgress >= 1.0) {
+      if (navigator.vibrate) {
+        navigator.vibrate(40);
+      }
+    }
+  }, 50);
+}
+
+function stopCharging() {
+  if (chargeTimer) {
+    clearInterval(chargeTimer);
+    chargeTimer = null;
+  }
+
+  const chargeBar = document.getElementById('charge-bar-container');
+  if (chargeBar) chargeBar.classList.add('hidden');
+
+  const wasFullyCharged = chargeProgress >= 1.0;
+  chargeProgress = 0;
+
+  if (connection && isConnected) {
+    connection.send({
+      type: MSG_TYPES.CHARGE_UPDATE,
+      payload: { charge: 0 }
+    });
+  }
+
+  return wasFullyCharged;
+}
+
 function startFiring(e) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
   }
   
+  // Start charging the power attack on press/hold
+  startCharging();
+
   if (isFiring) return;
-  const activeWeapon = WEAPONS[settings.currentWeapon || 'pistol'];
+  const activeWeapon = WEAPONS[settings.currentWeapon || 'plasma'];
 
   if (activeWeapon.fireMode === 'auto') {
     isFiring = true;
-    
-    const shootBtn = document.getElementById('shoot-btn');
-    if (shootBtn) shootBtn.classList.add('active');
-
     fireSingleShot();
     
     fireIntervalId = setInterval(() => {
@@ -273,14 +338,20 @@ function stopFiring(e) {
     if (typeof e.stopPropagation === 'function') e.stopPropagation();
   }
 
+  // Stop charging and release heavy attack if fully charged
+  const fullyCharged = stopCharging();
+  if (fullyCharged && connection && isConnected) {
+    connection.send({
+      type: MSG_TYPES.SHOOT,
+      payload: { isCharged: true }
+    });
+  }
+
   isFiring = false;
   if (fireIntervalId) {
     clearInterval(fireIntervalId);
     fireIntervalId = null;
   }
-  
-  const shootBtn = document.getElementById('shoot-btn');
-  if (shootBtn) shootBtn.classList.remove('active');
 }
 
 function fireSingleShot() {
@@ -400,6 +471,11 @@ function loadSettings() {
     }
   } catch (e) {
     console.error('Failed to load settings:', e);
+  }
+
+  // Sanitise weapon selection to avoid legacy value crash
+  if (!WEAPONS[settings.currentWeapon]) {
+    settings.currentWeapon = 'plasma';
   }
 
   // Populate UI inputs
@@ -626,20 +702,28 @@ function initSession() {
   }
 
   // Bind Weapon Selector Buttons
-  const pistolBtn = document.getElementById('weapon-btn-pistol');
-  const smgBtn = document.getElementById('weapon-btn-smg');
-  if (pistolBtn) {
-    pistolBtn.addEventListener('click', () => selectWeapon('pistol'));
-    pistolBtn.addEventListener('touchstart', (e) => {
+  const plasmaBtn = document.getElementById('weapon-btn-plasma');
+  const laserBtn = document.getElementById('weapon-btn-laser');
+  const railgunBtn = document.getElementById('weapon-btn-railgun');
+  if (plasmaBtn) {
+    plasmaBtn.addEventListener('click', () => selectWeapon('plasma'));
+    plasmaBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      selectWeapon('pistol');
+      selectWeapon('plasma');
     }, { passive: false });
   }
-  if (smgBtn) {
-    smgBtn.addEventListener('click', () => selectWeapon('smg'));
-    smgBtn.addEventListener('touchstart', (e) => {
+  if (laserBtn) {
+    laserBtn.addEventListener('click', () => selectWeapon('laser'));
+    laserBtn.addEventListener('touchstart', (e) => {
       e.preventDefault();
-      selectWeapon('smg');
+      selectWeapon('laser');
+    }, { passive: false });
+  }
+  if (railgunBtn) {
+    railgunBtn.addEventListener('click', () => selectWeapon('railgun'));
+    railgunBtn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      selectWeapon('railgun');
     }, { passive: false });
   }
 

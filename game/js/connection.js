@@ -59,7 +59,15 @@ export class GameConnection {
           }
           case MSG_TYPES.SHOOT: {
             const pId = message.playerId || 'default';
-            this.onShoot(pId);
+            const isCharged = (message.payload && message.payload.isCharged) || false;
+            this.onShoot(pId, isCharged);
+            break;
+          }
+          case MSG_TYPES.CHARGE_UPDATE: {
+            const pId = message.playerId || 'default';
+            if (this.onChargeUpdate) {
+              this.onChargeUpdate(pId, (message.payload && message.payload.charge) || 0);
+            }
             break;
           }
           case MSG_TYPES.RECENTER: {

@@ -505,13 +505,7 @@ body {
 
 /* Shoot Button Styles */
 .shoot-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 15px 0;
-  background: linear-gradient(to top, rgba(7, 9, 21, 0.95) 0%, rgba(11, 13, 25, 0.8) 100%);
-  border-top: 1px solid rgba(255, 0, 127, 0.1);
-  z-index: 10;
+  display: none !important;
 }
 
 .shoot-btn {
@@ -542,12 +536,14 @@ body {
 
 /* Bottom Recenter Overrides */
 .bottom-recenter {
-  margin: 0 auto 10px auto;
-  align-self: center;
-  padding: 8px 20px;
-  font-size: 13px;
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  margin: 0;
+  padding: 12px 28px;
+  font-size: 15px;
   border-radius: 30px;
-  margin-bottom: calc(10px + env(safe-area-inset-bottom));
   box-shadow: 0 0 15px rgba(0, 242, 254, 0.2), inset 0 0 10px rgba(0, 242, 254, 0.05);
-  z-index: 10;
 }

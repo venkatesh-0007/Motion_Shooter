@@ -681,28 +681,36 @@ function handleShoot(arg1, isCharged = false) {
       });
     }
 
-    // Eliminate all targets on screen
+    // Eliminate targets close to the aim point (within a 160px blast radius)
+    const blastRadius = 160;
     for (let i = targets.length - 1; i >= 0; i--) {
       const target = targets[i];
       const proj = project(target.x, target.y, target.z);
       if (proj) {
-        spawnParticles(proj.x, proj.y, '#00ff66', 30);
-        
-        floatingTexts.push({
-          x: proj.x,
-          y: proj.y - 30,
-          text: 'MEGA-BLAST SHATTER! +100',
-          color: '#00ff66',
-          scale: 1.3,
-          alpha: 1.0,
-          vy: -1.2
-        });
+        const dx = proj.x - ch.x;
+        const dy = proj.y - ch.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Record a body hit kill on the server
-        connection.sendPlayerHit(playerId, 'body');
+        if (dist < blastRadius) {
+          spawnParticles(proj.x, proj.y, '#00ff66', 30);
+          
+          floatingTexts.push({
+            x: proj.x,
+            y: proj.y - 30,
+            text: 'MEGA-BLAST SHATTER! +100',
+            color: '#00ff66',
+            scale: 1.3,
+            alpha: 1.0,
+            vy: -1.2
+          });
+
+          // Record a body hit kill on the server
+          connection.sendPlayerHit(playerId, 'body');
+
+          targets.splice(i, 1);
+          spawnSingleTarget();
+        }
       }
-      targets.splice(i, 1);
-      spawnSingleTarget();
     }
     return;
   }
@@ -747,12 +755,13 @@ function handleShoot(arg1, isCharged = false) {
     if (!hCenter) continue;
     const headRad = 0.12 * hCenter.scale;
 
-    // Check hit on head (1 shot kill!)
+    // Check hit on head (1 shot kill!) with a minimum hit tolerance of 22 pixels
     const dxHead = ch.x - hCenter.x;
     const dyHead = ch.y - hCenter.y;
     const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
+    const headHitbox = Math.max(headRad, 22);
 
-    if (distHead < headRad) {
+    if (distHead < headHitbox) {
       // Instant Headshot Kill!
       playHitSound('head');
       spawnParticles(hCenter.x, hCenter.y, '#ff007f', 28);
@@ -774,11 +783,11 @@ function handleShoot(arg1, isCharged = false) {
       break;
     }
 
-    // Body dimensions (Torso coordinates check)
+    // Body dimensions with minimum hit tolerance (at least 25x35 pixels box check)
     const bodyX = proj.x;
     const bodyY = proj.y - 0.45 * proj.scale;
-    const bodyRadiusX = 0.25 * proj.scale;
-    const bodyRadiusY = 0.35 * proj.scale;
+    const bodyRadiusX = Math.max(0.25 * proj.scale, 25);
+    const bodyRadiusY = Math.max(0.35 * proj.scale, 35);
 
     const normX = (ch.x - bodyX) / bodyRadiusX;
     const normY = (ch.y - bodyY) / bodyRadiusY;

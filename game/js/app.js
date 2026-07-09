@@ -32,7 +32,24 @@ let gameStarted = false;
 let canvas, ctx;
 let targets = [];
 let particles = [];
-const MAX_TARGETS = 3;
+let towers = [];
+let floatingTexts = [];
+
+// 3D Perspective and Levels config
+const fov = 350;
+const floorY = 2.2;
+let currentLevel = 1;
+let maxTargets = 2;
+let targetFadeTime = 600; // ms
+let mapSpeed = 0.04;
+let mapZOffset = 0;
+
+const LEVEL_CONFIGS = {
+  1: { speed: 0.04, maxTargets: 2, fadeTime: 600 },
+  2: { speed: 0.08, maxTargets: 3, fadeTime: 400 },
+  3: { speed: 0.12, maxTargets: 4, fadeTime: 250 },
+  4: { speed: 0.18, maxTargets: 5, fadeTime: 150 }
+};
 
 // Round countdown timer
 let timeLeft = 60;
@@ -68,6 +85,134 @@ function getAngleDifference(current, reference) {
   while (diff < -180) diff += 360;
   while (diff > 180) diff -= 360;
   return diff;
+}
+
+/**
+ * Projects 3D coordinates (X, Y, Z) to 2D Screen Space.
+ */
+function project(x, y, z) {
+  if (!canvas) return null;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  if (z <= 0.1) return null;
+  return {
+    x: centerX + (x * fov) / z,
+    y: centerY + (y * fov) / z,
+    scale: fov / z
+  };
+}
+
+/**
+ * Initializes the side towers.
+ */
+function initTowers() {
+  towers = [];
+  const numTowers = 12;
+  for (let i = 0; i < numTowers; i++) {
+    towers.push({
+      x: i % 2 === 0 ? -7 - Math.random() * 5 : 7 + Math.random() * 5,
+      y: floorY,
+      z: (i / numTowers) * 18 + 2.0,
+      w: 1.5 + Math.random() * 1.5,
+      h: 3.0 + Math.random() * 5.0,
+      d: 1.5 + Math.random() * 1.5,
+      color: i % 2 === 0 ? 'rgba(0, 242, 254, 0.08)' : 'rgba(255, 0, 127, 0.08)'
+    });
+  }
+}
+
+/**
+ * Updates side towers position and draws them.
+ */
+function updateAndDrawTowers() {
+  towers.forEach(t => {
+    t.z -= mapSpeed;
+    if (t.z < 0.2) {
+      t.z = 20;
+      t.x = Math.random() > 0.5 ? -7 - Math.random() * 5 : 7 + Math.random() * 5;
+      t.w = 1.5 + Math.random() * 1.5;
+      t.h = 3.0 + Math.random() * 5.0;
+      t.d = 1.5 + Math.random() * 1.5;
+    }
+    draw3DBox(t.x, t.y, t.z, t.w, t.h, t.d, t.color);
+  });
+}
+
+/**
+ * Draws a 3D box wireframe projected onto the canvas.
+ */
+function draw3DBox(x, y, z, w, h, d, color) {
+  const vertices = [
+    { x: x - w/2, y: y,     z: z },
+    { x: x + w/2, y: y,     z: z },
+    { x: x + w/2, y: y - h, z: z },
+    { x: x - w/2, y: y - h, z: z },
+    
+    { x: x - w/2, y: y,     z: z + d },
+    { x: x + w/2, y: y,     z: z + d },
+    { x: x + w/2, y: y - h, z: z + d },
+    { x: x - w/2, y: y - h, z: z + d }
+  ];
+
+  const projected = vertices.map(v => project(v.x, v.y, v.z));
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+
+  function drawEdge(i, j) {
+    const p1 = projected[i];
+    const p2 = projected[j];
+    if (p1 && p2) {
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y);
+      ctx.lineTo(p2.x, p2.y);
+      ctx.stroke();
+    }
+  }
+
+  drawEdge(0, 1); drawEdge(1, 2); drawEdge(2, 3); drawEdge(3, 0);
+  drawEdge(4, 5); drawEdge(5, 6); drawEdge(6, 7); drawEdge(7, 4);
+  drawEdge(0, 4); drawEdge(1, 5); drawEdge(2, 6); drawEdge(3, 7);
+}
+
+/**
+ * Checks overall score to update level and map speed variables.
+ */
+function checkLevelProgression() {
+  const connectedPlayers = playerManager.getConnectedPlayers();
+  const totalScore = connectedPlayers.reduce((sum, p) => sum + p.score, 0);
+
+  let newLevel = 1;
+  if (totalScore >= 2200) {
+    newLevel = 4;
+  } else if (totalScore >= 1200) {
+    newLevel = 3;
+  } else if (totalScore >= 500) {
+    newLevel = 2;
+  }
+
+  if (newLevel !== currentLevel) {
+    currentLevel = newLevel;
+    const config = LEVEL_CONFIGS[currentLevel];
+    mapSpeed = config.speed;
+    maxTargets = config.maxTargets;
+    targetFadeTime = config.fadeTime;
+
+    floatingTexts.push({
+      x: canvas.width / 2,
+      y: canvas.height / 2 - 100,
+      text: `LEVEL ${currentLevel} - SPEED INCREASED!`,
+      color: '#ff007f',
+      scale: 2.0,
+      alpha: 1.5,
+      vy: -0.5
+    });
+
+    const levelVal = document.getElementById('level-val');
+    if (levelVal) {
+      levelVal.textContent = currentLevel;
+    }
+  }
 }
 
 /**
@@ -255,24 +400,79 @@ function handleShoot(arg1) {
   // Spawn visual muzzle particles at crosshair pointer
   spawnParticles(ch.x, ch.y, ch.color, 6);
 
-  // Check overlap collision with active targets
+  // Check overlap collision with active targets in 3D
   for (let i = targets.length - 1; i >= 0; i--) {
     const target = targets[i];
-    const dx = ch.x - target.x;
-    const dy = ch.y - target.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
+    const proj = project(target.x, target.y, target.z);
+    if (!proj) continue;
 
-    // Overlap condition (crosshair cursor hits circle bounds)
-    if (distance < target.radius) {
-      // Spawn score explosion particles
-      spawnParticles(target.x, target.y, target.color, 20);
+    const pulseRadius = target.baseRadius * proj.scale + Math.sin(target.pulseTimer) * 1.5;
+    const headOffset = target.baseRadius * 1.2 * proj.scale;
+    const headX = proj.x;
+    const headY = proj.y - headOffset;
+    const headRadius = pulseRadius * 0.3;
+
+    // Check hit on head
+    const dxHead = ch.x - headX;
+    const dyHead = ch.y - headY;
+    const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
+
+    if (distHead < headRadius) {
+      // HEADSHOT!
+      spawnParticles(headX, headY, '#ff007f', 25);
+      
+      // Floating text
+      floatingTexts.push({
+        x: headX,
+        y: headY - 15,
+        text: 'HEADSHOT +200!',
+        color: '#ff007f',
+        scale: 1.4,
+        alpha: 1.0,
+        vy: -1.5
+      });
 
       // Remove target and spawn replacement
       targets.splice(i, 1);
       spawnSingleTarget();
 
       // Notify server about the hit
-      connection.sendPlayerHit(playerId);
+      connection.sendPlayerHit(playerId, 'head');
+      break;
+    }
+
+    // Check hit on body (ellipsoid boundary check)
+    const bodyX = proj.x;
+    const bodyY = proj.y;
+    const bodyRadiusX = pulseRadius * 0.7;
+    const bodyRadiusY = pulseRadius * 1.3;
+
+    const normX = (ch.x - bodyX) / bodyRadiusX;
+    const normY = (ch.y - bodyY) / bodyRadiusY;
+    const insideBody = (normX * normX + normY * normY) <= 1.0;
+
+    if (insideBody) {
+      // BODY HIT!
+      spawnParticles(bodyX, bodyY, target.color, 15);
+
+      // Floating text
+      floatingTexts.push({
+        x: bodyX,
+        y: bodyY - 15,
+        text: 'BODY HIT +100!',
+        color: '#00f2fe',
+        scale: 1.0,
+        alpha: 1.0,
+        vy: -1.2
+      });
+
+      // Remove target and spawn replacement
+      targets.splice(i, 1);
+      spawnSingleTarget();
+
+      // Notify server about the hit
+      connection.sendPlayerHit(playerId, 'body');
+      break;
     }
   }
 }
@@ -287,9 +487,12 @@ function initCanvas() {
   resizeCanvas();
   window.addEventListener('resize', resizeCanvas);
 
-  // Clear existing targets and generate initial stack
+  // Initialize side towers
+  initTowers();
+
+  // Clear existing targets and generate initial stack based on current level max
   targets = [];
-  for (let i = 0; i < MAX_TARGETS; i++) {
+  for (let i = 0; i < maxTargets; i++) {
     spawnSingleTarget();
   }
 
@@ -307,16 +510,33 @@ function resizeCanvas() {
  * Spawns a new target.
  */
 function spawnSingleTarget() {
-  const margin = 100;
-  const radius = Math.random() * 15 + 20; // 20px - 35px
-  const x = Math.random() * (canvas.width - margin * 2) + margin;
-  const y = Math.random() * (canvas.height - margin * 2) + margin;
+  if (!canvas) return;
 
-  // Curated color themes for high contrast premium vibes
+  // Spawns near horizon (Z = 16 to 20)
+  const z = 16 + Math.random() * 4;
+  // x is relative to road center (-3.5 to 3.5)
+  const x = -3.5 + Math.random() * 7.0;
+  // y is hovering above grid floor (floorY - 1.2 to floorY - 0.3)
+  const y = floorY - (0.3 + Math.random() * 0.9);
+
+  const baseRadius = 0.35; // Size in 3D units
+
   const hues = [190, 280, 340, 45, 140];
   const color = `hsl(${hues[Math.floor(Math.random() * hues.length)]}, 95%, 60%)`;
 
-  targets.push({ x, y, radius, color, pulseTimer: Math.random() * 10 });
+  targets.push({
+    x,
+    y,
+    z,
+    baseRadius,
+    color,
+    opacity: 0,
+    targetOpacity: 1,
+    spawnTime: Date.now(),
+    lifespan: 6000,
+    pulseTimer: Math.random() * 10,
+    lockRingProgress: 1.5
+  });
 }
 
 /**
@@ -343,6 +563,33 @@ function gameLoop(timestamp) {
     }
   });
 
+  // Update target positions & fade-ins
+  const now = Date.now();
+  for (let i = targets.length - 1; i >= 0; i--) {
+    const target = targets[i];
+    
+    // Animate fade-in (suddenly appear!)
+    if (target.opacity < target.targetOpacity) {
+      target.opacity += 16.67 / targetFadeTime;
+      if (target.opacity > target.targetOpacity) target.opacity = target.targetOpacity;
+    }
+
+    // Shrink the locking warning ring
+    if (target.lockRingProgress > 0) {
+      target.lockRingProgress -= 0.04;
+      if (target.lockRingProgress < 0) target.lockRingProgress = 0;
+    }
+
+    // Move target slowly towards camera with map speed
+    target.z -= mapSpeed;
+
+    // Check if target is out of range or expired
+    if (target.z <= 0.5 || (now - target.spawnTime > target.lifespan)) {
+      targets.splice(i, 1);
+      spawnSingleTarget();
+    }
+  }
+
   // Update particle physics
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
@@ -358,30 +605,88 @@ function gameLoop(timestamp) {
   ctx.fillStyle = '#05070f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw grid background (cyber/motion vibes)
+  // Draw 3D scrolling grid
   drawGrid();
 
-  // Draw circular targets with subtle animations
+  // Draw 3D side obstacles/towers
+  updateAndDrawTowers();
+
+  // Draw 3D targets with head and body hitboxes
   targets.forEach((target) => {
+    const proj = project(target.x, target.y, target.z);
+    if (!proj) return;
+
     target.pulseTimer += 0.05;
-    const pulseRadius = target.radius + Math.sin(target.pulseTimer) * 2;
+    const pulseRadius = target.baseRadius * proj.scale + Math.sin(target.pulseTimer) * 1.5;
 
     ctx.save();
+    ctx.globalAlpha = target.opacity;
     ctx.shadowBlur = 15;
     ctx.shadowColor = target.color;
 
-    // Draw glowing ring
+    const bodyX = proj.x;
+    const bodyY = proj.y;
+    const bodyRadius = pulseRadius * 0.7;
+
+    const headOffset = target.baseRadius * 1.2 * proj.scale;
+    const headX = proj.x;
+    const headY = proj.y - headOffset;
+    const headRadius = pulseRadius * 0.3;
+
+    // Draw Body capsule
     ctx.beginPath();
-    ctx.arc(target.x, target.y, pulseRadius, 0, Math.PI * 2);
+    ctx.ellipse(bodyX, bodyY, bodyRadius, bodyRadius * 1.3, 0, 0, Math.PI * 2);
     ctx.strokeStyle = target.color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = `rgba(0, 242, 254, 0.08)`;
+    ctx.fill();
+
+    // Draw Head
+    ctx.beginPath();
+    ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ff007f';
     ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Draw inner solid center
+    ctx.fillStyle = '#ff007f';
     ctx.beginPath();
-    ctx.arc(target.x, target.y, pulseRadius * 0.4, 0, Math.PI * 2);
-    ctx.fillStyle = target.color;
+    ctx.arc(headX, headY, headRadius * 0.4, 0, Math.PI * 2);
     ctx.fill();
+
+    // Target corners brackets
+    const bracketSize = bodyRadius * 0.6;
+    ctx.strokeStyle = target.color;
+    ctx.lineWidth = 1.5;
+    // Top-Left
+    ctx.beginPath();
+    ctx.moveTo(bodyX - bodyRadius - 5, bodyY - bodyRadius * 1.3 + bracketSize - 5);
+    ctx.lineTo(bodyX - bodyRadius - 5, bodyY - bodyRadius * 1.3 - 5);
+    ctx.lineTo(bodyX - bodyRadius + bracketSize - 5, bodyY - bodyRadius * 1.3 - 5);
+    ctx.stroke();
+    // Bottom-Right
+    ctx.beginPath();
+    ctx.moveTo(bodyX + bodyRadius + 5, bodyY + bodyRadius * 1.3 - bracketSize + 5);
+    ctx.lineTo(bodyX + bodyRadius + 5, bodyY + bodyRadius * 1.3 + 5);
+    ctx.lineTo(bodyX + bodyRadius - bracketSize + 5, bodyY + bodyRadius * 1.3 + 5);
+    ctx.stroke();
+
+    // Lock-On Ring for sudden appearance
+    if (target.lockRingProgress > 0) {
+      const ringScale = 1.0 + target.lockRingProgress * 1.5;
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(bodyX, bodyY, bodyRadius * ringScale * 1.4, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = '9px Orbitron';
+      ctx.fillText('TARGET LOCKING...', bodyX - 45, bodyY + bodyRadius * 1.3 + 20);
+    }
 
     ctx.restore();
   });
@@ -399,6 +704,26 @@ function gameLoop(timestamp) {
     ctx.restore();
   });
 
+  // Draw Floating Text Indicators
+  for (let i = floatingTexts.length - 1; i >= 0; i--) {
+    const ft = floatingTexts[i];
+    ft.y += ft.vy;
+    ft.alpha -= 0.02;
+    if (ft.alpha <= 0) {
+      floatingTexts.splice(i, 1);
+    } else {
+      ctx.save();
+      ctx.globalAlpha = Math.min(1.0, ft.alpha);
+      ctx.fillStyle = ft.color;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = ft.color;
+      ctx.font = `bold ${Math.round(14 * ft.scale)}px 'Orbitron'`;
+      ctx.textAlign = 'center';
+      ctx.fillText(ft.text, ft.x, ft.y);
+      ctx.restore();
+    }
+  }
+
   // Draw Crosshairs for all active players
   playerManager.players.forEach(player => {
     if (player.connected) {
@@ -408,23 +733,53 @@ function gameLoop(timestamp) {
 }
 
 /**
- * Draws a sci-fi cyber grid background.
+ * Draws a sci-fi cyber grid background in pseudo 3D perspective scrolling forward.
  */
 function drawGrid() {
-  const gridSize = 80;
-  ctx.strokeStyle = 'rgba(0, 242, 254, 0.04)';
+  if (!canvas || !ctx) return;
+  
+  // Scroll lateral lines
+  mapZOffset -= mapSpeed;
+  const spacing = 1.5;
+  if (mapZOffset < 0) {
+    mapZOffset += spacing;
+  }
+
+  ctx.strokeStyle = 'rgba(0, 242, 254, 0.1)';
   ctx.lineWidth = 1;
 
-  ctx.beginPath();
-  for (let x = 0; x < canvas.width; x += gridSize) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, canvas.height);
+  const gridWidth = 10;
+  const numGridLines = 10;
+
+  // Longitudinal lines (vertical grid paths extending to horizon)
+  for (let i = 0; i <= numGridLines; i++) {
+    const x = -gridWidth / 2 + (gridWidth / numGridLines) * i;
+    const pFar = project(x, floorY, 20);
+    const pNear = project(x, floorY, 0.2);
+    
+    if (pFar && pNear) {
+      ctx.beginPath();
+      ctx.moveTo(pFar.x, pFar.y);
+      ctx.lineTo(pNear.x, pNear.y);
+      ctx.stroke();
+    }
   }
-  for (let y = 0; y < canvas.height; y += gridSize) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(canvas.width, y);
+
+  // Lateral lines (horizontal scroll lines)
+  const maxZ = 20;
+  for (let z = mapZOffset; z <= maxZ; z += spacing) {
+    const pLeft = project(-gridWidth / 2, floorY, z);
+    const pRight = project(gridWidth / 2, floorY, z);
+
+    if (pLeft && pRight) {
+      const alpha = Math.max(0, Math.min(1, 1 - (z / maxZ)));
+      ctx.strokeStyle = `rgba(0, 242, 254, ${alpha * 0.2})`;
+      ctx.beginPath();
+      ctx.moveTo(pLeft.x, pLeft.y);
+      ctx.lineTo(pRight.x, pRight.y);
+      ctx.stroke();
+    }
   }
-  ctx.stroke();
 }
 
 /**
@@ -514,6 +869,7 @@ connection.onPlayerWeaponChanged = (playerId, weapon) => {
 connection.onPlayerStatsUpdated = (playerId, statsPayload) => {
   playerManager.updateStats(playerId, statsPayload.score, statsPayload.shots, statsPayload.hits);
   updateLeaderboardUI();
+  checkLevelProgression();
 };
 
 connection.onStartGame = () => {
@@ -593,6 +949,18 @@ function updateLeaderboardUI() {
 function startGame() {
   gameStarted = true;
   timeLeft = 60;
+
+  // Reset level states
+  currentLevel = 1;
+  mapSpeed = LEVEL_CONFIGS[1].speed;
+  maxTargets = LEVEL_CONFIGS[1].maxTargets;
+  targetFadeTime = LEVEL_CONFIGS[1].fadeTime;
+  floatingTexts = [];
+  
+  const levelVal = document.getElementById('level-val');
+  if (levelVal) {
+    levelVal.textContent = currentLevel;
+  }
 
   // UI state transition
   lobbyScreen.classList.add('hidden');

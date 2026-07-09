@@ -649,7 +649,7 @@ function handleShoot(arg1, isCharged = false) {
   ch.shootPulse = 1.0;
 
   // Retrieve current weapon configuration
-  const activeWeaponKey = player.weapon || 'plasma';
+  const activeWeaponKey = player.currentWeapon || 'plasma';
   const weapon = WEAPONS[activeWeaponKey] || WEAPONS.plasma;
 
   if (isCharged) {

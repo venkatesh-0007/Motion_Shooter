@@ -22,6 +22,7 @@ body {
   color: var(--text-primary);
   font-family: 'Outfit', sans-serif;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   display: flex;
@@ -536,7 +537,7 @@ body {
 
 /* Bottom Recenter Overrides */
 .bottom-recenter {
-  position: absolute;
+  position: fixed;
   bottom: 20px;
   left: 50%;
   transform: translateX(-50%);
@@ -546,4 +547,47 @@ body {
   font-size: 15px;
   border-radius: 30px;
   box-shadow: 0 0 15px rgba(0, 242, 254, 0.2), inset 0 0 10px rgba(0, 242, 254, 0.05);
+}
+
+/* Charge Bar Styles */
+.charge-bar-container {
+  width: 80%;
+  margin: 0 auto;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1.5px solid rgba(0, 242, 254, 0.3);
+  border-radius: 20px;
+  height: 28px;
+  position: fixed;
+  bottom: 80px; /* Positioned right above the recenter button */
+  left: 50%;
+  transform: translateX(-50%);
+  overflow: hidden;
+  z-index: 15;
+  transition: opacity 0.2s ease;
+}
+
+.charge-bar-container.hidden {
+  display: none !important;
+}
+
+.charge-bar-progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #00ff66, #00f2fe);
+  box-shadow: 0 0 10px rgba(0, 255, 102, 0.6);
+  transition: width 0.05s linear;
+}
+
+.charge-bar-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 1px;
+  pointer-events: none;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
 }

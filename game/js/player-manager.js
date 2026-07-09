@@ -18,7 +18,7 @@ export class PlayerManager {
    * @param {boolean} invertX Invert horizontal control.
    * @param {boolean} invertY Invert vertical control.
    */
-  addPlayer(sessionId, playerName = 'Player', sensitivity = 1.0, invertX = false, invertY = false, currentWeapon = 'pistol') {
+  addPlayer(sessionId, playerName = 'Player', sensitivity = 1.0, invertX = false, invertY = false, currentWeapon = 'plasma') {
     // 1. Assign or find index for color consistency
     let index = this.playerIndices.indexOf(sessionId);
     if (index === -1) {

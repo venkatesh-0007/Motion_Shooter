@@ -304,12 +304,20 @@ recenterBtn.addEventListener('click', (e) => {
   e.stopPropagation();
 });
 
-// Touchpad Drag-to-Aim & Tap-to-Shoot fallback
+// Touchpad Drag-to-Aim & Full-Screen Tap-to-Shoot
 touchPad.addEventListener('touchstart', (e) => {
+  // Prevent firing on system UI interactions
+  if (e.target.closest('#recenter-btn') || e.target.closest('#settings-toggle-btn') || e.target.closest('.weapon-btn')) {
+    return;
+  }
   e.preventDefault(); // Prevents zooming and default tapping behaviors
+  
   const touch = e.touches[0];
   startTouch = { x: touch.clientX, y: touch.clientY, time: Date.now() };
   isDragging = false;
+
+  // Start firing immediately
+  startFiring();
 }, { passive: false });
 
 touchPad.addEventListener('touchmove', (e) => {
@@ -354,7 +362,35 @@ touchPad.addEventListener('touchend', (e) => {
   e.preventDefault();
   startTouch = null;
   isDragging = false;
+  
+  // Stop firing
+  stopFiring();
 }, { passive: false });
+
+touchPad.addEventListener('touchcancel', (e) => {
+  e.preventDefault();
+  startTouch = null;
+  isDragging = false;
+  
+  // Stop firing
+  stopFiring();
+}, { passive: false });
+
+// Mouse fallback for local desktop testing
+touchPad.addEventListener('mousedown', (e) => {
+  if (e.target.closest('#recenter-btn') || e.target.closest('#settings-toggle-btn') || e.target.closest('.weapon-btn')) {
+    return;
+  }
+  startFiring();
+});
+
+touchPad.addEventListener('mouseup', () => {
+  stopFiring();
+});
+
+touchPad.addEventListener('mouseleave', () => {
+  stopFiring();
+});
 
 function loadSettings() {
   try {

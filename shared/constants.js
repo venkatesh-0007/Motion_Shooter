@@ -23,7 +23,8 @@ export const MSG_TYPES = {
   PLAYER_STATS: 'PLAYER_STATS',
   RESET_STATS: 'RESET_STATS',
   RETURN_TO_LOBBY: 'RETURN_TO_LOBBY',
-  WEAPON_CHANGE: 'WEAPON_CHANGE'
+  WEAPON_CHANGE: 'WEAPON_CHANGE',
+  CHARGE_UPDATE: 'CHARGE_UPDATE'
 };
 
 /**
@@ -36,23 +37,28 @@ export const CONNECTION_STATES = {
 };
 
 /**
- * Central Weapon Configurations
+ * Central Futuristic Weapon Configurations
  */
 export const WEAPONS = {
-  pistol: {
-    name: 'Pistol',
+  plasma: {
+    name: 'Plasma Disrupter',
     fireMode: 'semi',
-    fireInterval: 350, // ms cooldown
+    fireInterval: 400,
     damage: 50,
-    spread: 0,
-    range: 100
+    color: '#00f2fe'
   },
-  smg: {
-    name: 'SMG',
+  laser: {
+    name: 'Laser Repeater',
     fireMode: 'auto',
-    fireInterval: 120, // ms between shots
-    damage: 20,
-    spread: 0.05, // Small spread for 3D compatibility
-    range: 60
+    fireInterval: 120,
+    damage: 25,
+    color: '#ff007f'
+  },
+  railgun: {
+    name: 'Quantum Railgun',
+    fireMode: 'semi',
+    fireInterval: 800,
+    damage: 100,
+    color: '#00ff66'
   }
 };

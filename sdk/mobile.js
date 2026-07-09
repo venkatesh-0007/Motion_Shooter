@@ -131,6 +131,12 @@ export class MobileController {
     }
   }
 
+  sendMapChange(mapId) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ type: MSG_TYPES.MAP_CHANGE, mapId }));
+    }
+  }
+
   sendWeaponChange(weapon) {
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.socket.send(JSON.stringify({

@@ -177,6 +177,20 @@ export function handleSocketConnection(ws) {
           }
           break;
 
+        case MSG_TYPES.MAP_CHANGE:
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const mapId = message.mapId;
+            const gameSocket = sessions[ws.sessionId].gameSocket;
+            if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+              gameSocket.send(JSON.stringify({
+                type: MSG_TYPES.MAP_CHANGE,
+                playerId: ws.controllerId,
+                mapId: mapId
+              }));
+            }
+          }
+          break;
+
         case MSG_TYPES.SETTINGS_UPDATE:
           if (ws.sessionId && sessions[ws.sessionId]) {
             ws.settings = message.payload.settings;

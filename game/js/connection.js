@@ -85,6 +85,11 @@ export class GameConnection {
               this.onPlayerWeaponChanged(message.playerId, message.payload.weapon);
             }
             break;
+          case MSG_TYPES.MAP_CHANGE:
+            if (this.onMapChanged) {
+              this.onMapChanged(message.mapId);
+            }
+            break;
           case MSG_TYPES.PLAYER_CONNECTED:
             if (this.onPlayerConnected) {
               this.onPlayerConnected(message.payload);

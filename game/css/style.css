@@ -776,7 +776,8 @@ body {
   font-weight: 700;
   letter-spacing: 1px;
   border-radius: 8px;
-  cursor: pointer;
+  cursor: default;
+  pointer-events: none;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-muted);

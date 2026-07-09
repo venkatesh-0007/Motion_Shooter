@@ -645,6 +645,53 @@ function initSession() {
     mobileStartBtn.addEventListener('touchstart', handleStart, { passive: false });
   }
 
+  // Mobile Map Selection
+  const mobMap1 = document.getElementById('mobile-map-btn-1');
+  const mobMap2 = document.getElementById('mobile-map-btn-2');
+
+  function updateMobileMapUI(mapId) {
+    if (!mobMap1 || !mobMap2) return;
+    if (mapId === 1) {
+      mobMap1.style.borderColor = 'var(--glow-cyan)';
+      mobMap1.style.background = 'rgba(0, 242, 254, 0.08)';
+      mobMap1.style.color = 'var(--glow-cyan)';
+      
+      mobMap2.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+      mobMap2.style.background = 'rgba(255, 255, 255, 0.02)';
+      mobMap2.style.color = 'var(--text-muted)';
+    } else {
+      mobMap2.style.borderColor = 'var(--glow-cyan)';
+      mobMap2.style.background = 'rgba(0, 242, 254, 0.08)';
+      mobMap2.style.color = 'var(--glow-cyan)';
+      
+      mobMap1.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+      mobMap1.style.background = 'rgba(255, 255, 255, 0.02)';
+      mobMap1.style.color = 'var(--text-muted)';
+    }
+  }
+
+  if (mobMap1 && mobMap2) {
+    const setMap1 = (e) => {
+      e.preventDefault();
+      updateMobileMapUI(1);
+      if (connection && isConnected) {
+        connection.sendMapChange(1);
+      }
+    };
+    const setMap2 = (e) => {
+      e.preventDefault();
+      updateMobileMapUI(2);
+      if (connection && isConnected) {
+        connection.sendMapChange(2);
+      }
+    };
+
+    mobMap1.addEventListener('click', setMap1);
+    mobMap1.addEventListener('touchstart', setMap1, { passive: false });
+    mobMap2.addEventListener('click', setMap2);
+    mobMap2.addEventListener('touchstart', setMap2, { passive: false });
+  }
+
   // Name prompt workflow modal
   const namePromptOverlay = document.getElementById('name-prompt-overlay');
   const promptNameInput = document.getElementById('prompt-name-input');

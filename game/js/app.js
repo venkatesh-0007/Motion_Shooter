@@ -2112,23 +2112,22 @@ if (returnLobbyBtn) {
   returnLobbyBtn.addEventListener('click', returnToLobby);
 }
 
-// Bind Map Buttons
-const mapBtn1 = document.getElementById('map-btn-1');
-const mapBtn2 = document.getElementById('map-btn-2');
+// Listen to Map changes from the mobile controller
+connection.onMapChanged = (mapId) => {
+  activeMap = mapId;
+  const mapBtn1 = document.getElementById('map-btn-1');
+  const mapBtn2 = document.getElementById('map-btn-2');
 
-if (mapBtn1 && mapBtn2) {
-  mapBtn1.addEventListener('click', () => {
-    activeMap = 1;
-    mapBtn1.classList.add('active');
-    mapBtn2.classList.remove('active');
-  });
-
-  mapBtn2.addEventListener('click', () => {
-    activeMap = 2;
-    mapBtn1.classList.remove('active');
-    mapBtn2.classList.add('active');
-  });
-}
+  if (mapBtn1 && mapBtn2) {
+    if (activeMap === 1) {
+      mapBtn1.classList.add('active');
+      mapBtn2.classList.remove('active');
+    } else {
+      mapBtn1.classList.remove('active');
+      mapBtn2.classList.add('active');
+    }
+  }
+};
 
 connection.connect();
 

@@ -141,6 +141,16 @@
       <p class="status-glow" style="font-size: 18px; margin-bottom: 12px; color: #2ed573;">Connected ✅</p>
       <div id="lobby-head-controls" class="hidden">
         <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px; line-height: 1.6;">You are the <strong>Head Controller</strong>. Tap below to launch the arena once all players are connected.</p>
+        
+        <!-- Mobile Map Selector -->
+        <div class="mobile-map-selection" style="margin-bottom: 25px; text-align: left;">
+          <label style="display: block; font-family: 'Orbitron', sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--glow-cyan); margin-bottom: 10px;">CHOOSE MAP</label>
+          <div class="mobile-map-buttons" style="display: flex; gap: 10px;">
+            <button id="mobile-map-btn-1" class="mobile-map-btn active" style="flex: 1; padding: 12px; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; border-radius: 8px; border: 1.5px solid var(--glow-cyan); background: rgba(0, 242, 254, 0.08); color: var(--glow-cyan); cursor: pointer; transition: all 0.25s ease;">Cyber Canyon</button>
+            <button id="mobile-map-btn-2" class="mobile-map-btn" style="flex: 1; padding: 12px; font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 700; border-radius: 8px; border: 1.5px solid rgba(255, 255, 255, 0.1); background: rgba(255, 255, 255, 0.02); color: var(--text-muted); cursor: pointer; transition: all 0.25s ease;">Sniper Building</button>
+          </div>
+        </div>
+
         <button id="mobile-start-btn" class="action-btn">Start Game</button>
       </div>
       <div id="lobby-wait-controls">

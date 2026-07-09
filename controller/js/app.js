@@ -1,4 +1,4 @@
-import { CONNECTION_STATES, WEAPONS } from '/shared/constants.js';
+import { CONNECTION_STATES, WEAPONS, MSG_TYPES } from '/shared/constants.js';
 import { MobileController } from '/sdk/mobile.js';
 
 // Firing state variables

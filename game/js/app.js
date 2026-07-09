@@ -1,4 +1,4 @@
-import { CONNECTION_STATES } from '/shared/constants.js';
+import { CONNECTION_STATES, WEAPONS } from '/shared/constants.js';
 import { BACKEND_URL } from '/shared/config.js';
 import { GameConnection } from './connection.js';
 import { PlayerManager } from './player-manager.js';
@@ -34,6 +34,8 @@ let targets = [];
 let particles = [];
 let towers = [];
 let floatingTexts = [];
+let laserTrails = [];
+let muzzleFlashes = [];
 
 // 3D Perspective and Levels config
 const fov = 350;
@@ -43,6 +45,11 @@ let maxTargets = 2;
 let targetFadeTime = 600; // ms
 let mapSpeed = 0.04;
 let mapZOffset = 0;
+
+// Canyon Track Curvature
+let trackCurve = 0;
+let targetCurve = 0;
+let curvePhase = 0;
 
 const LEVEL_CONFIGS = {
   1: { speed: 0.04, maxTargets: 2, fadeTime: 600 },
@@ -87,19 +94,260 @@ function getAngleDifference(current, reference) {
   return diff;
 }
 
+// Web Audio Context & Synth sounds (Pews, metallic hits, bells)
+let audioCtx = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+  if (AudioContextClass) {
+    audioCtx = new AudioContextClass();
+  }
+}
+
+function synthSound(freqs, duration, type = 'sine', volume = 0.1, sweep = true) {
+  initAudio();
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume();
+  }
+
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  
+  osc.type = type;
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  const now = audioCtx.currentTime;
+  gain.gain.setValueAtTime(volume, now);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+  if (Array.isArray(freqs)) {
+    if (sweep) {
+      osc.frequency.setValueAtTime(freqs[0], now);
+      osc.frequency.exponentialRampToValueAtTime(freqs[1], now + duration);
+    } else {
+      const noteDuration = duration / freqs.length;
+      freqs.forEach((freq, idx) => {
+        osc.frequency.setValueAtTime(freq, now + idx * noteDuration);
+      });
+    }
+  } else {
+    osc.frequency.setValueAtTime(freqs, now);
+  }
+
+  osc.start(now);
+  osc.stop(now + duration);
+}
+
+function playNoiseExplosion(duration, volume = 0.2, highPass = false) {
+  initAudio();
+  if (!audioCtx) return;
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+
+  const bufferSize = audioCtx.sampleRate * duration;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) {
+    data[i] = Math.random() * 2 - 1;
+  }
+
+  const noise = audioCtx.createBufferSource();
+  noise.buffer = buffer;
+
+  const gain = audioCtx.createGain();
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = highPass ? 'highpass' : 'lowpass';
+  filter.frequency.value = highPass ? 1200 : 700;
+  
+  noise.connect(filter);
+  filter.connect(gain);
+  gain.connect(audioCtx.destination);
+  
+  noise.start();
+}
+
+function playShootSound(weaponType) {
+  if (weaponType === 'laser') {
+    synthSound([1200, 600], 0.12, 'square', 0.05);
+  } else if (weaponType === 'railgun') {
+    synthSound([180, 45], 0.5, 'sawtooth', 0.25);
+    playNoiseExplosion(0.4, 0.2);
+  } else { // plasma
+    synthSound([750, 150], 0.25, 'triangle', 0.15);
+  }
+}
+
+function playHitSound(hitType) {
+  if (hitType === 'head') {
+    synthSound([2000, 2200], 0.2, 'sine', 0.18, false); // clear bell
+  } else {
+    synthSound([240, 100], 0.15, 'triangle', 0.12); // dull impact
+  }
+}
+
+function playLevelUpSound() {
+  synthSound([523.25, 659.25, 783.99, 1046.50], 0.6, 'sine', 0.18, false); // C5-E5-G5-C6
+}
+
+function playPowerAttackSound() {
+  synthSound([120, 30], 0.9, 'sawtooth', 0.4);
+  playNoiseExplosion(0.9, 0.4);
+}
+
+function playChargeSound(progress) {
+  synthSound([220 + progress * 330, 230 + progress * 330], 0.05, 'sine', 0.05 * progress);
+}
+
 /**
- * Projects 3D coordinates (X, Y, Z) to 2D Screen Space.
+ * Projects 3D coordinates (X, Y, Z) to 2D Screen Space with track curving.
  */
 function project(x, y, z) {
   if (!canvas) return null;
   const centerX = canvas.width / 2;
   const centerY = canvas.height / 2;
   if (z <= 0.1) return null;
+
+  // Apply bending curve on track relative to distance Z (quadratic bend)
+  const curveOffset = trackCurve * (z * z) * 0.04;
+
   return {
-    x: centerX + (x * fov) / z,
+    x: centerX + ((x + curveOffset) * fov) / z,
     y: centerY + (y * fov) / z,
     scale: fov / z
   };
+}
+
+/**
+ * Draws a walk-animated wireframe 3D Robot target with eye visor and health bar.
+ */
+function drawWalkingRobot(target) {
+  const proj = project(target.x, target.y, target.z);
+  if (!proj) return;
+
+  target.pulseTimer += 0.05;
+  target.walkPhase = (target.walkPhase || 0) + 0.08;
+  
+  const walkSwing = Math.sin(target.walkPhase) * 0.35;
+  const armSwing = Math.cos(target.walkPhase) * 0.4;
+
+  ctx.save();
+  ctx.globalAlpha = target.opacity;
+  ctx.shadowBlur = 10;
+  
+  // Flashing red when damaged, otherwise target color
+  const color = target.flashTime > Date.now() ? '#ff3333' : target.color;
+  ctx.shadowColor = color;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+
+  // Draw 3D joints
+  // 1. Torso Box
+  const tTopL = project(target.x - 0.2, target.y - 0.7, target.z);
+  const tTopR = project(target.x + 0.2, target.y - 0.7, target.z);
+  const tBotL = project(target.x - 0.15, target.y - 0.2, target.z);
+  const tBotR = project(target.x + 0.15, target.y - 0.2, target.z);
+
+  if (tTopL && tTopR && tBotL && tBotR) {
+    ctx.beginPath();
+    ctx.moveTo(tTopL.x, tTopL.y);
+    ctx.lineTo(tTopR.x, tTopR.y);
+    ctx.lineTo(tBotR.x, tBotR.y);
+    ctx.lineTo(tBotL.x, tBotL.y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Fill Torso semi-transparent
+    ctx.fillStyle = 'rgba(0, 242, 254, 0.04)';
+    ctx.fill();
+  }
+
+  // 2. Head (Cube or circle)
+  const hCenter = project(target.x, target.y - 0.95, target.z);
+  if (hCenter) {
+    const headRad = 0.12 * hCenter.scale;
+    
+    // Draw outer head circle
+    ctx.beginPath();
+    ctx.arc(hCenter.x, hCenter.y, headRad, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Draw glowing visor eye line
+    ctx.strokeStyle = '#ff007f';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(hCenter.x - headRad * 0.6, hCenter.y);
+    ctx.lineTo(hCenter.x + headRad * 0.6, hCenter.y);
+    ctx.stroke();
+
+    ctx.strokeStyle = color; // restore color
+    ctx.lineWidth = 2;
+  }
+
+  // 3. Left Arm (Swings)
+  const shoulderL = project(target.x - 0.22, target.y - 0.65, target.z);
+  const handL = project(target.x - 0.35, target.y - 0.45 + armSwing * 0.1, target.z - armSwing * 0.5);
+  if (shoulderL && handL) {
+    ctx.beginPath();
+    ctx.moveTo(shoulderL.x, shoulderL.y);
+    ctx.lineTo(handL.x, handL.y);
+    ctx.stroke();
+  }
+
+  // 4. Right Arm (Swings opposite)
+  const shoulderR = project(target.x + 0.22, target.y - 0.65, target.z);
+  const handR = project(target.x + 0.35, target.y - 0.45 - armSwing * 0.1, target.z + armSwing * 0.5);
+  if (shoulderR && handR) {
+    ctx.beginPath();
+    ctx.moveTo(shoulderR.x, shoulderR.y);
+    ctx.lineTo(handR.x, handR.y);
+    ctx.stroke();
+  }
+
+  // 5. Left Leg (Swings back/forth)
+  const footL = project(target.x - 0.14 + walkSwing * 0.1, target.y + 0.1, target.z + walkSwing * 0.6);
+  if (tBotL && footL) {
+    ctx.beginPath();
+    ctx.moveTo(tBotL.x, tBotL.y);
+    ctx.lineTo(footL.x, footL.y);
+    ctx.stroke();
+  }
+
+  // 6. Right Leg (Swings opposite)
+  const footR = project(target.x + 0.14 - walkSwing * 0.1, target.y + 0.1, target.z - walkSwing * 0.6);
+  if (tBotR && footR) {
+    ctx.beginPath();
+    ctx.moveTo(tBotR.x, tBotR.y);
+    ctx.lineTo(footR.x, footR.y);
+    ctx.stroke();
+  }
+
+  // 7. Draw floating Health Bar above head
+  const hBar = project(target.x, target.y - 1.25, target.z);
+  if (hBar) {
+    const barWidth = 35;
+    const barHeight = 4;
+    const pct = target.health / 100;
+    
+    // Background bar (red)
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.4)';
+    ctx.fillRect(hBar.x - barWidth / 2, hBar.y, barWidth, barHeight);
+    
+    // Foreground bar (green / orange / red depending on pct)
+    ctx.fillStyle = pct > 0.5 ? '#00ff66' : (pct > 0.25 ? '#ff9f43' : '#ff3333');
+    ctx.fillRect(hBar.x - barWidth / 2, hBar.y, barWidth * pct, barHeight);
+
+    // Border
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.5;
+    ctx.strokeRect(hBar.x - barWidth / 2, hBar.y, barWidth, barHeight);
+  }
+
+  ctx.restore();
 }
 
 /**
@@ -197,6 +445,9 @@ function checkLevelProgression() {
     mapSpeed = config.speed;
     maxTargets = config.maxTargets;
     targetFadeTime = config.fadeTime;
+
+    // Play level advancement sound synthesizer
+    playLevelUpSound();
 
     floatingTexts.push({
       x: canvas.width / 2,
@@ -379,7 +630,7 @@ function spawnParticles(x, y, color, count = 12) {
 /**
  * Handles incoming trigger signals from the controller.
  */
-function handleShoot(arg1) {
+function handleShoot(arg1, isCharged = false) {
   if (!isConnected || !gameStarted) return;
 
   let playerId;
@@ -393,85 +644,185 @@ function handleShoot(arg1) {
   if (!player || !player.connected) return;
 
   const ch = player.crosshair;
-
+  
   // Apply expansion pulse on crosshair
   ch.shootPulse = 1.0;
 
-  // Spawn visual muzzle particles at crosshair pointer
-  spawnParticles(ch.x, ch.y, ch.color, 6);
+  // Retrieve current weapon configuration
+  const activeWeaponKey = player.weapon || 'plasma';
+  const weapon = WEAPONS[activeWeaponKey] || WEAPONS.plasma;
 
-  // Check overlap collision with active targets in 3D
+  if (isCharged) {
+    // 1. Quantum Mega-Beam Power Attack
+    playPowerAttackSound();
+    
+    // Draw screen-wide flashing mega beam trail
+    laserTrails.push({
+      startX1: 0,
+      startY1: canvas.height,
+      startX2: canvas.width,
+      startY2: canvas.height,
+      endX: ch.x,
+      endY: ch.y,
+      color: '#ffffff',
+      alpha: 2.2,
+      width: 16
+    });
+
+    // Hexagonal blast rings
+    for (let r = 20; r <= 80; r += 20) {
+      muzzleFlashes.push({
+        x: ch.x,
+        y: ch.y,
+        radius: r,
+        maxRadius: 120,
+        color: '#00ff66',
+        alpha: 1.0
+      });
+    }
+
+    // Eliminate all targets on screen
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const target = targets[i];
+      const proj = project(target.x, target.y, target.z);
+      if (proj) {
+        spawnParticles(proj.x, proj.y, '#00ff66', 30);
+        
+        floatingTexts.push({
+          x: proj.x,
+          y: proj.y - 30,
+          text: 'MEGA-BLAST SHATTER! +100',
+          color: '#00ff66',
+          scale: 1.3,
+          alpha: 1.0,
+          vy: -1.2
+        });
+
+        // Record a body hit kill on the server
+        connection.sendPlayerHit(playerId, 'body');
+      }
+      targets.splice(i, 1);
+      spawnSingleTarget();
+    }
+    return;
+  }
+
+  // 2. Normal Futuristic Laser Fire
+  playShootSound(activeWeaponKey);
+
+  // Add turret laser beams (left & right corners to crosshair)
+  laserTrails.push({
+    startX1: 0,
+    startY1: canvas.height,
+    startX2: canvas.width,
+    startY2: canvas.height,
+    endX: ch.x,
+    endY: ch.y,
+    color: weapon.color,
+    alpha: 1.0,
+    width: 3.5
+  });
+
+  // Muzzle hexagon flash
+  muzzleFlashes.push({
+    x: ch.x,
+    y: ch.y,
+    radius: 12,
+    maxRadius: 40,
+    color: weapon.color,
+    alpha: 1.0
+  });
+
+  // Spawn visual muzzle sparks
+  spawnParticles(ch.x, ch.y, weapon.color, 8);
+
+  // Check collision with robots
   for (let i = targets.length - 1; i >= 0; i--) {
     const target = targets[i];
     const proj = project(target.x, target.y, target.z);
     if (!proj) continue;
 
-    const pulseRadius = target.baseRadius * proj.scale + Math.sin(target.pulseTimer) * 1.5;
-    const headOffset = target.baseRadius * 1.2 * proj.scale;
-    const headX = proj.x;
-    const headY = proj.y - headOffset;
-    const headRadius = pulseRadius * 0.3;
+    // Head dimensions
+    const hCenter = project(target.x, target.y - 0.95, target.z);
+    if (!hCenter) continue;
+    const headRad = 0.12 * hCenter.scale;
 
-    // Check hit on head
-    const dxHead = ch.x - headX;
-    const dyHead = ch.y - headY;
+    // Check hit on head (1 shot kill!)
+    const dxHead = ch.x - hCenter.x;
+    const dyHead = ch.y - hCenter.y;
     const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
 
-    if (distHead < headRadius) {
-      // HEADSHOT!
-      spawnParticles(headX, headY, '#ff007f', 25);
+    if (distHead < headRad) {
+      // Instant Headshot Kill!
+      playHitSound('head');
+      spawnParticles(hCenter.x, hCenter.y, '#ff007f', 28);
       
-      // Floating text
       floatingTexts.push({
-        x: headX,
-        y: headY - 15,
-        text: 'HEADSHOT +200!',
+        x: hCenter.x,
+        y: hCenter.y - 25,
+        text: 'CRITICAL HEADSHOT! +200',
         color: '#ff007f',
         scale: 1.4,
         alpha: 1.0,
         vy: -1.5
       });
 
-      // Remove target and spawn replacement
       targets.splice(i, 1);
       spawnSingleTarget();
 
-      // Notify server about the hit
       connection.sendPlayerHit(playerId, 'head');
       break;
     }
 
-    // Check hit on body (ellipsoid boundary check)
+    // Body dimensions (Torso coordinates check)
     const bodyX = proj.x;
-    const bodyY = proj.y;
-    const bodyRadiusX = pulseRadius * 0.7;
-    const bodyRadiusY = pulseRadius * 1.3;
+    const bodyY = proj.y - 0.45 * proj.scale;
+    const bodyRadiusX = 0.25 * proj.scale;
+    const bodyRadiusY = 0.35 * proj.scale;
 
     const normX = (ch.x - bodyX) / bodyRadiusX;
     const normY = (ch.y - bodyY) / bodyRadiusY;
     const insideBody = (normX * normX + normY * normY) <= 1.0;
 
     if (insideBody) {
-      // BODY HIT!
-      spawnParticles(bodyX, bodyY, target.color, 15);
+      // Body Hit: 50% damage
+      target.health -= 50;
+      target.flashTime = Date.now() + 150; // flash red helper
 
-      // Floating text
-      floatingTexts.push({
-        x: bodyX,
-        y: bodyY - 15,
-        text: 'BODY HIT +100!',
-        color: '#00f2fe',
-        scale: 1.0,
-        alpha: 1.0,
-        vy: -1.2
-      });
+      if (target.health <= 0) {
+        // Destroyed!
+        playHitSound('body');
+        spawnParticles(bodyX, bodyY, target.color, 20);
 
-      // Remove target and spawn replacement
-      targets.splice(i, 1);
-      spawnSingleTarget();
+        floatingTexts.push({
+          x: bodyX,
+          y: bodyY - 25,
+          text: 'ROBOT DESTROYED! +100',
+          color: '#00f2fe',
+          scale: 1.1,
+          alpha: 1.0,
+          vy: -1.2
+        });
 
-      // Notify server about the hit
-      connection.sendPlayerHit(playerId, 'body');
+        targets.splice(i, 1);
+        spawnSingleTarget();
+
+        connection.sendPlayerHit(playerId, 'body');
+      } else {
+        // Shield damaged
+        playHitSound('body');
+        spawnParticles(bodyX, bodyY, 'rgba(255,255,255,0.8)', 8);
+
+        floatingTexts.push({
+          x: bodyX,
+          y: bodyY - 25,
+          text: 'SHIELD DAMAGED! 50%',
+          color: '#ff9f43',
+          scale: 0.9,
+          alpha: 1.0,
+          vy: -0.9
+        });
+      }
       break;
     }
   }
@@ -535,7 +886,10 @@ function spawnSingleTarget() {
     spawnTime: Date.now(),
     lifespan: 6000,
     pulseTimer: Math.random() * 10,
-    lockRingProgress: 1.5
+    lockRingProgress: 1.5,
+    health: 100,
+    walkPhase: Math.random() * Math.PI * 2,
+    flashTime: 0
   });
 }
 
@@ -546,7 +900,12 @@ function gameLoop(timestamp) {
   if (!isConnected || !gameStarted) return;
   requestAnimationFrame(gameLoop);
 
-  // 1. Update positions (Interpolation smoothing) for all active players
+  // 1. Curve Canyon Track Map bending transitions
+  curvePhase += 0.006;
+  targetCurve = Math.sin(curvePhase) * Math.cos(curvePhase * 0.6) * 1.6;
+  trackCurve += (targetCurve - trackCurve) * 0.015;
+
+  // 2. Update positions (Interpolation smoothing) for all active players
   playerManager.players.forEach(player => {
     if (!player.connected) return;
     const ch = player.crosshair;
@@ -601,7 +960,26 @@ function gameLoop(timestamp) {
     }
   }
 
-  // 2. Draw canvas frames
+  // Update and fade visual laser trails
+  for (let i = laserTrails.length - 1; i >= 0; i--) {
+    const trail = laserTrails[i];
+    trail.alpha -= 0.12;
+    if (trail.alpha <= 0) {
+      laserTrails.splice(i, 1);
+    }
+  }
+
+  // Update and fade muzzle flashes
+  for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
+    const mf = muzzleFlashes[i];
+    mf.radius += 3.5;
+    mf.alpha -= 0.1;
+    if (mf.alpha <= 0) {
+      muzzleFlashes.splice(i, 1);
+    }
+  }
+
+  // 3. Draw canvas frames
   ctx.fillStyle = '#05070f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -611,84 +989,9 @@ function gameLoop(timestamp) {
   // Draw 3D side obstacles/towers
   updateAndDrawTowers();
 
-  // Draw 3D targets with head and body hitboxes
+  // Draw 3D walk-animated robot targets
   targets.forEach((target) => {
-    const proj = project(target.x, target.y, target.z);
-    if (!proj) return;
-
-    target.pulseTimer += 0.05;
-    const pulseRadius = target.baseRadius * proj.scale + Math.sin(target.pulseTimer) * 1.5;
-
-    ctx.save();
-    ctx.globalAlpha = target.opacity;
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = target.color;
-
-    const bodyX = proj.x;
-    const bodyY = proj.y;
-    const bodyRadius = pulseRadius * 0.7;
-
-    const headOffset = target.baseRadius * 1.2 * proj.scale;
-    const headX = proj.x;
-    const headY = proj.y - headOffset;
-    const headRadius = pulseRadius * 0.3;
-
-    // Draw Body capsule
-    ctx.beginPath();
-    ctx.ellipse(bodyX, bodyY, bodyRadius, bodyRadius * 1.3, 0, 0, Math.PI * 2);
-    ctx.strokeStyle = target.color;
-    ctx.lineWidth = 3;
-    ctx.stroke();
-
-    ctx.fillStyle = `rgba(0, 242, 254, 0.08)`;
-    ctx.fill();
-
-    // Draw Head
-    ctx.beginPath();
-    ctx.arc(headX, headY, headRadius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#ff007f';
-    ctx.lineWidth = 4;
-    ctx.stroke();
-
-    ctx.fillStyle = '#ff007f';
-    ctx.beginPath();
-    ctx.arc(headX, headY, headRadius * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Target corners brackets
-    const bracketSize = bodyRadius * 0.6;
-    ctx.strokeStyle = target.color;
-    ctx.lineWidth = 1.5;
-    // Top-Left
-    ctx.beginPath();
-    ctx.moveTo(bodyX - bodyRadius - 5, bodyY - bodyRadius * 1.3 + bracketSize - 5);
-    ctx.lineTo(bodyX - bodyRadius - 5, bodyY - bodyRadius * 1.3 - 5);
-    ctx.lineTo(bodyX - bodyRadius + bracketSize - 5, bodyY - bodyRadius * 1.3 - 5);
-    ctx.stroke();
-    // Bottom-Right
-    ctx.beginPath();
-    ctx.moveTo(bodyX + bodyRadius + 5, bodyY + bodyRadius * 1.3 - bracketSize + 5);
-    ctx.lineTo(bodyX + bodyRadius + 5, bodyY + bodyRadius * 1.3 + 5);
-    ctx.lineTo(bodyX + bodyRadius - bracketSize + 5, bodyY + bodyRadius * 1.3 + 5);
-    ctx.stroke();
-
-    // Lock-On Ring for sudden appearance
-    if (target.lockRingProgress > 0) {
-      const ringScale = 1.0 + target.lockRingProgress * 1.5;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.arc(bodyX, bodyY, bodyRadius * ringScale * 1.4, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-      
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.font = '9px Orbitron';
-      ctx.fillText('TARGET LOCKING...', bodyX - 45, bodyY + bodyRadius * 1.3 + 20);
-    }
-
-    ctx.restore();
+    drawWalkingRobot(target);
   });
 
   // Draw particles
@@ -701,6 +1004,50 @@ function gameLoop(timestamp) {
     ctx.shadowBlur = 10;
     ctx.shadowColor = p.color;
     ctx.fill();
+    ctx.restore();
+  });
+
+  // Draw muzzle flash hexagons
+  muzzleFlashes.forEach((mf) => {
+    ctx.save();
+    ctx.globalAlpha = mf.alpha;
+    ctx.strokeStyle = mf.color;
+    ctx.lineWidth = 2.5;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = mf.color;
+
+    ctx.beginPath();
+    for (let j = 0; j < 6; j++) {
+      const angle = (j * Math.PI) / 3;
+      const hx = mf.x + Math.cos(angle) * mf.radius;
+      const hy = mf.y + Math.sin(angle) * mf.radius;
+      if (j === 0) ctx.moveTo(hx, hy);
+      else ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Draw laser beam trails
+  laserTrails.forEach((trail) => {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1.0, trail.alpha);
+    ctx.strokeStyle = trail.color;
+    ctx.lineWidth = trail.width * Math.min(1.0, trail.alpha);
+    ctx.shadowBlur = 18;
+    ctx.shadowColor = trail.color;
+
+    ctx.beginPath();
+    ctx.moveTo(trail.startX1, trail.startY1);
+    ctx.lineTo(trail.endX, trail.endY);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(trail.startX2, trail.startY2);
+    ctx.lineTo(trail.endX, trail.endY);
+    ctx.stroke();
+
     ctx.restore();
   });
 
@@ -724,10 +1071,24 @@ function gameLoop(timestamp) {
     }
   }
 
-  // Draw Crosshairs for all active players
+  // Draw Crosshairs and charging indicators for all active players
   playerManager.players.forEach(player => {
     if (player.connected) {
-      drawCrosshair(player.crosshair);
+      const ch = player.crosshair;
+      drawCrosshair(ch);
+
+      // Draw charging ring progress overlay
+      if (player.chargeProgress > 0) {
+        ctx.save();
+        ctx.strokeStyle = '#00ff66';
+        ctx.lineWidth = 3;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00ff66';
+        ctx.beginPath();
+        ctx.arc(ch.x, ch.y, ch.radius + 8, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * player.chargeProgress);
+        ctx.stroke();
+        ctx.restore();
+      }
     }
   });
 }
@@ -738,42 +1099,47 @@ function gameLoop(timestamp) {
 function drawGrid() {
   if (!canvas || !ctx) return;
   
-  // Scroll lateral lines
   mapZOffset -= mapSpeed;
   const spacing = 1.5;
   if (mapZOffset < 0) {
     mapZOffset += spacing;
   }
 
-  ctx.strokeStyle = 'rgba(0, 242, 254, 0.1)';
-  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(0, 242, 254, 0.12)';
+  ctx.lineWidth = 1.2;
 
   const gridWidth = 10;
   const numGridLines = 10;
+  const maxZ = 20;
 
-  // Longitudinal lines (vertical grid paths extending to horizon)
+  // 1. Draw stepped longitudinal lines to reflect track curvature
   for (let i = 0; i <= numGridLines; i++) {
     const x = -gridWidth / 2 + (gridWidth / numGridLines) * i;
-    const pFar = project(x, floorY, 20);
-    const pNear = project(x, floorY, 0.2);
     
-    if (pFar && pNear) {
-      ctx.beginPath();
-      ctx.moveTo(pFar.x, pFar.y);
-      ctx.lineTo(pNear.x, pNear.y);
-      ctx.stroke();
+    ctx.beginPath();
+    let first = true;
+    for (let z = 20; z >= 0.2; z -= 1.0) {
+      const proj = project(x, floorY, z);
+      if (proj) {
+        if (first) {
+          ctx.moveTo(proj.x, proj.y);
+          first = false;
+        } else {
+          ctx.lineTo(proj.x, proj.y);
+        }
+      }
     }
+    ctx.stroke();
   }
 
-  // Lateral lines (horizontal scroll lines)
-  const maxZ = 20;
+  // 2. Draw lateral lines
   for (let z = mapZOffset; z <= maxZ; z += spacing) {
     const pLeft = project(-gridWidth / 2, floorY, z);
     const pRight = project(gridWidth / 2, floorY, z);
 
     if (pLeft && pRight) {
       const alpha = Math.max(0, Math.min(1, 1 - (z / maxZ)));
-      ctx.strokeStyle = `rgba(0, 242, 254, ${alpha * 0.2})`;
+      ctx.strokeStyle = `rgba(0, 242, 254, ${alpha * 0.22})`;
       ctx.beginPath();
       ctx.moveTo(pLeft.x, pLeft.y);
       ctx.lineTo(pRight.x, pRight.y);
@@ -872,6 +1238,16 @@ connection.onPlayerStatsUpdated = (playerId, statsPayload) => {
   checkLevelProgression();
 };
 
+connection.onChargeUpdate = (playerId, charge) => {
+  const player = playerManager.getPlayer(playerId);
+  if (player) {
+    player.chargeProgress = charge;
+    if (charge > 0) {
+      playChargeSound(charge);
+    }
+  }
+};
+
 connection.onStartGame = () => {
   startGame();
 };
@@ -924,7 +1300,7 @@ function updateLeaderboardUI() {
     entry.className = 'leaderboard-entry';
     entry.style.transform = `translateY(${index * 52}px)`;
 
-    const weaponName = (player.currentWeapon || 'pistol').toUpperCase();
+    const weaponName = (player.currentWeapon || 'plasma').toUpperCase();
     entry.innerHTML = `
       <div class="leaderboard-entry-left">
         <span class="player-dot" style="color: ${player.crosshair.color}; background: ${player.crosshair.color};"></span>

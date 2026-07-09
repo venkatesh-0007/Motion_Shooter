@@ -156,8 +156,8 @@ export class GameConnection {
     this.send({ type: MSG_TYPES.START_GAME });
   }
 
-  sendPlayerHit(playerId) {
-    this.send({ type: MSG_TYPES.PLAYER_HIT, playerId });
+  sendPlayerHit(playerId, hitType = 'body') {
+    this.send({ type: MSG_TYPES.PLAYER_HIT, playerId, hitType });
   }
 
   sendResetStats() {

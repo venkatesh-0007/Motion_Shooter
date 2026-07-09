@@ -51,6 +51,12 @@ let trackCurve = 0;
 let targetCurve = 0;
 let curvePhase = 0;
 
+// Map selection & Map 2 (Sniper Apartment) states
+let activeMap = 1;
+let map2Stage = 'intro'; // 'intro', 'play'
+let map2Windows = [];
+let lastMap2SpawnTime = 0;
+
 const LEVEL_CONFIGS = {
   1: { speed: 0.04, maxTargets: 2, fadeTime: 600 },
   2: { speed: 0.08, maxTargets: 3, fadeTime: 400 },
@@ -484,6 +490,228 @@ function drawWalkingRobot(target) {
 }
 
 /**
+ * Initializes the 3x3 apartment windows grid for Map 2.
+ */
+function initMap2Windows() {
+  map2Windows = [];
+  const colRel = [-0.62, 0.0, 0.62];
+  const rowRel = [-0.62, 0.0, 0.62];
+  
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      map2Windows.push({
+        id: r * 3 + c,
+        col: colRel[c],
+        row: rowRel[r],
+        active: false,
+        yOffset: 0,
+        status: 'inactive', // 'rising', 'staying', 'falling', 'dead'
+        health: 100,
+        lifeTimer: 0,
+        color: Math.random() > 0.5 ? '#ff007f' : '#ff3333'
+      });
+    }
+  }
+}
+
+/**
+ * Draws the introduction page's boss face.
+ */
+function drawIntroBossFace(cx, cy, size) {
+  ctx.save();
+
+  // 1. Neck / Shirt
+  ctx.fillStyle = '#ff007f';
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.45, cy + size * 0.4);
+  ctx.lineTo(cx + size * 0.45, cy + size * 0.4);
+  ctx.quadraticCurveTo(cx, cy + size * 0.15, cx - size * 0.45, cy + size * 0.4);
+  ctx.closePath();
+  ctx.fill();
+
+  // Collar V neck cut
+  ctx.fillStyle = '#101421';
+  ctx.beginPath();
+  ctx.moveTo(cx - size * 0.1, cy + size * 0.25);
+  ctx.lineTo(cx + size * 0.1, cy + size * 0.25);
+  ctx.lineTo(cx, cy + size * 0.38);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. Neck
+  ctx.fillStyle = '#ffcc99';
+  ctx.fillRect(cx - size * 0.1, cy + size * 0.15, size * 0.2, size * 0.15);
+
+  // 3. Peach head circle
+  ctx.beginPath();
+  ctx.arc(cx, cy - size * 0.1, size * 0.32, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ear bumps
+  ctx.beginPath();
+  ctx.arc(cx - size * 0.32, cy - size * 0.1, size * 0.07, 0, Math.PI * 2);
+  ctx.arc(cx + size * 0.32, cy - size * 0.1, size * 0.07, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. Sunglasses
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(cx - size * 0.24, cy - size * 0.18, size * 0.48, size * 0.11);
+
+  // 5. Mustache (brown)
+  ctx.fillStyle = '#5c4033';
+  ctx.fillRect(cx - size * 0.16, cy, size * 0.32, size * 0.09);
+
+  ctx.restore();
+}
+
+/**
+ * Draws the watch-screen circular scope mask and tick lines.
+ */
+function drawScopeOverlay(centerX, centerY, scopeRadius) {
+  ctx.save();
+
+  // 1. Draw outer black mask
+  ctx.beginPath();
+  ctx.rect(0, 0, canvas.width, canvas.height);
+  ctx.arc(centerX, centerY, scopeRadius, 0, Math.PI * 2, true);
+  ctx.fillStyle = '#05070f';
+  ctx.fill();
+
+  // 2. Draw outer scope ring border
+  ctx.strokeStyle = '#1b2234';
+  ctx.lineWidth = 12;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, scopeRadius, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Draw scope tick ring
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, scopeRadius - 8, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // 3. Draw heavy scope crosshair lines crossing at center
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 3.5;
+  
+  // Horizontal line (clipped to scope)
+  ctx.beginPath();
+  ctx.moveTo(centerX - scopeRadius, centerY);
+  ctx.lineTo(centerX + scopeRadius, centerY);
+  ctx.stroke();
+  
+  // Vertical line
+  ctx.beginPath();
+  ctx.moveTo(centerX, centerY - scopeRadius);
+  ctx.lineTo(centerX, centerY + scopeRadius);
+  ctx.stroke();
+
+  // Draw ticks on crosshair lines
+  ctx.strokeStyle = '#000000';
+  ctx.lineWidth = 2;
+  for (let offset = 40; offset < scopeRadius - 30; offset += 45) {
+    // Horizontal line ticks
+    ctx.beginPath();
+    ctx.moveTo(centerX - offset, centerY - 6);
+    ctx.lineTo(centerX - offset, centerY + 6);
+    ctx.moveTo(centerX + offset, centerY - 6);
+    ctx.lineTo(centerX + offset, centerY + 6);
+    // Vertical line ticks
+    ctx.moveTo(centerX - 6, centerY - offset);
+    ctx.lineTo(centerX + 6, centerY - offset);
+    ctx.moveTo(centerX - 6, centerY + offset);
+    ctx.lineTo(centerX + 6, centerY + offset);
+    ctx.stroke();
+  }
+
+  // Draw center aim dot
+  ctx.fillStyle = '#ff0055';
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Draw text "FIRE" at the bottom of the scope
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 16px Orbitron';
+  ctx.textAlign = 'center';
+  ctx.fillText('FIRE', centerX, centerY + scopeRadius - 35);
+
+  ctx.restore();
+}
+
+/**
+ * Draws the sliding boss target inside an apartment window frame.
+ */
+function drawBaldTarget(wx, wy, ww, wh, yOffset, shirtColor, health) {
+  ctx.save();
+  
+  // Clip drawing to window boundary so they slide behind sills
+  ctx.beginPath();
+  ctx.rect(wx, wy, ww, wh);
+  ctx.clip();
+
+  // Target size relative to window size
+  const targetH = wh * 0.85;
+  const targetW = ww * 0.7;
+  const targetX = wx + (ww - targetW) / 2;
+  const targetY = wy + wh - (wh * yOffset);
+
+  // 1. Draw Shirt (Torso)
+  ctx.fillStyle = shirtColor;
+  ctx.beginPath();
+  ctx.moveTo(targetX, targetY + targetH);
+  ctx.quadraticCurveTo(targetX + targetW / 2, targetY + targetH - targetH * 0.4, targetX + targetW, targetY + targetH);
+  ctx.closePath();
+  ctx.fill();
+
+  // V-neck cutout
+  ctx.fillStyle = '#ffcc99'; // neck skin
+  ctx.beginPath();
+  ctx.moveTo(targetX + targetW * 0.4, targetY + targetH - targetH * 0.35);
+  ctx.lineTo(targetX + targetW * 0.6, targetY + targetH - targetH * 0.35);
+  ctx.lineTo(targetX + targetW * 0.5, targetY + targetH - targetH * 0.2);
+  ctx.closePath();
+  ctx.fill();
+
+  // 2. Draw Neck
+  ctx.fillRect(targetX + targetW * 0.42, targetY + targetH - targetH * 0.5, targetW * 0.16, targetH * 0.16);
+
+  // 3. Draw Peach Head
+  const headRadius = targetW * 0.3;
+  const headCenterX = targetX + targetW / 2;
+  const headCenterY = targetY + targetH - targetH * 0.45;
+  
+  ctx.beginPath();
+  ctx.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Ear bumps
+  ctx.beginPath();
+  ctx.arc(headCenterX - headRadius, headCenterY, headRadius * 0.2, 0, Math.PI * 2);
+  ctx.arc(headCenterX + headRadius, headCenterY, headRadius * 0.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 4. Sunglasses
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(headCenterX - headRadius * 0.75, headCenterY - headRadius * 0.25, headRadius * 1.5, headRadius * 0.32);
+
+  // 5. Mustache
+  ctx.fillStyle = '#5c4033'; // brown
+  ctx.fillRect(headCenterX - headRadius * 0.5, headCenterY + headRadius * 0.2, headRadius * 1.0, headRadius * 0.25);
+
+  // 6. Draw red damage flash overlay
+  if (health < 100) {
+    ctx.fillStyle = 'rgba(255, 0, 0, 0.35)';
+    ctx.beginPath();
+    ctx.arc(headCenterX, headCenterY, headRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+/**
  * Initializes the side towers.
  */
 function initTowers() {
@@ -778,6 +1006,15 @@ function handleShoot(arg1, isCharged = false) {
 
   const ch = player.crosshair;
   
+  // Map 2 Intro transition
+  if (activeMap === 2 && map2Stage === 'intro') {
+    map2Stage = 'play';
+    playLevelUpSound();
+    initMap2Windows();
+    lastMap2SpawnTime = Date.now();
+    return;
+  }
+
   // Apply expansion pulse on crosshair
   ch.shootPulse = 1.0;
 
@@ -789,7 +1026,7 @@ function handleShoot(arg1, isCharged = false) {
     // 1. Quantum Mega-Beam Power Attack
     playPowerAttackSound();
     
-    // Draw screen-wide flashing mega beam trail
+    // Draw screen-wide mega beam
     laserTrails.push({
       startX1: 0,
       startY1: canvas.height,
@@ -802,7 +1039,7 @@ function handleShoot(arg1, isCharged = false) {
       width: 16
     });
 
-    // Hexagonal blast rings
+    // Blast rings
     for (let r = 20; r <= 80; r += 20) {
       muzzleFlashes.push({
         x: ch.x,
@@ -814,34 +1051,65 @@ function handleShoot(arg1, isCharged = false) {
       });
     }
 
-    // Eliminate targets close to the aim point (within a 160px blast radius)
-    const blastRadius = 160;
-    for (let i = targets.length - 1; i >= 0; i--) {
-      const target = targets[i];
-      const proj = project(target.x, target.y, target.z);
-      if (proj) {
-        const dx = proj.x - ch.x;
-        const dy = proj.y - ch.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < blastRadius) {
-          spawnParticles(proj.x, proj.y, '#00ff66', 30);
+    if (activeMap === 2) {
+      // Map 2 Mega-Blast (160px radius check)
+      const blastRadius = 160;
+      map2Windows.forEach(w => {
+        if (w.active && w.status !== 'dead') {
+          const headCenterX = w.pixelX + w.pixelW / 2;
+          const headCenterY = w.pixelY + w.pixelH - (w.pixelH * w.yOffset) + (w.pixelH * 0.85) - (w.pixelH * 0.85 * 0.45);
           
-          floatingTexts.push({
-            x: proj.x,
-            y: proj.y - 30,
-            text: 'MEGA-BLAST SHATTER! +100',
-            color: '#00ff66',
-            scale: 1.3,
-            alpha: 1.0,
-            vy: -1.2
-          });
+          const dx = headCenterX - ch.x;
+          const dy = headCenterY - ch.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          
+          if (dist < blastRadius) {
+            w.status = 'dead';
+            w.health = 0;
+            spawnParticles(headCenterX, headCenterY, '#00ff66', 25);
+            
+            floatingTexts.push({
+              x: headCenterX,
+              y: headCenterY - 25,
+              text: 'MEGA-BLAST SHATTER! +100',
+              color: '#00ff66',
+              scale: 1.2,
+              alpha: 1.0,
+              vy: -1.2
+            });
+            connection.sendPlayerHit(playerId, 'body');
+          }
+        }
+      });
+    } else {
+      // Map 1 Mega-Blast (160px radius check)
+      const blastRadius = 160;
+      for (let i = targets.length - 1; i >= 0; i--) {
+        const target = targets[i];
+        const proj = project(target.x, target.y, target.z);
+        if (proj) {
+          const dx = proj.x - ch.x;
+          const dy = proj.y - ch.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
 
-          // Record a body hit kill on the server
-          connection.sendPlayerHit(playerId, 'body');
+          if (dist < blastRadius) {
+            spawnParticles(proj.x, proj.y, '#00ff66', 30);
+            
+            floatingTexts.push({
+              x: proj.x,
+              y: proj.y - 30,
+              text: 'MEGA-BLAST SHATTER! +100',
+              color: '#00ff66',
+              scale: 1.3,
+              alpha: 1.0,
+              vy: -1.2
+            });
 
-          targets.splice(i, 1);
-          spawnSingleTarget();
+            connection.sendPlayerHit(playerId, 'body');
+
+            targets.splice(i, 1);
+            spawnSingleTarget();
+          }
         }
       }
     }
@@ -877,95 +1145,181 @@ function handleShoot(arg1, isCharged = false) {
   // Spawn visual muzzle sparks
   spawnParticles(ch.x, ch.y, weapon.color, 8);
 
-  // Check collision with robots
-  for (let i = targets.length - 1; i >= 0; i--) {
-    const target = targets[i];
-    const proj = project(target.x, target.y, target.z);
-    if (!proj) continue;
+  if (activeMap === 2) {
+    // Map 2: Sniper Apartment Windows Targets Collision
+    for (let i = 0; i < map2Windows.length; i++) {
+      const w = map2Windows[i];
+      if (w.active && (w.status === 'rising' || w.status === 'staying' || w.status === 'falling')) {
+        const targetW = w.pixelW * 0.7;
+        const targetH = w.pixelH * 0.85;
+        const targetX = w.pixelX + (w.pixelW - targetW) / 2;
+        const targetY = w.pixelY + w.pixelH - (w.pixelH * w.yOffset);
 
-    // Head dimensions
-    const hCenter = project(target.x, target.y - 0.95, target.z);
-    if (!hCenter) continue;
-    const headRad = 0.12 * hCenter.scale;
+        const headCenterX = targetX + targetW / 2;
+        const headCenterY = targetY + targetH - targetH * 0.45;
+        const headRadius = targetW * 0.3;
+        const headHitbox = Math.max(headRadius, 25);
 
-    // Check hit on head (1 shot kill!) with a minimum hit tolerance of 22 pixels
-    const dxHead = ch.x - hCenter.x;
-    const dyHead = ch.y - hCenter.y;
-    const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
-    const headHitbox = Math.max(headRad, 22);
+        // Check Headshot
+        const dxHead = ch.x - headCenterX;
+        const dyHead = ch.y - headCenterY;
+        const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
 
-    if (distHead < headHitbox) {
-      // Instant Headshot Kill!
-      playHitSound('head');
-      spawnParticles(hCenter.x, hCenter.y, '#ff007f', 28);
-      
-      floatingTexts.push({
-        x: hCenter.x,
-        y: hCenter.y - 25,
-        text: 'CRITICAL HEADSHOT! +200',
-        color: '#ff007f',
-        scale: 1.4,
-        alpha: 1.0,
-        vy: -1.5
-      });
+        if (distHead < headHitbox) {
+          w.status = 'dead';
+          w.health = 0;
+          playHitSound('head');
+          spawnParticles(headCenterX, headCenterY, '#ff007f', 28);
 
-      targets.splice(i, 1);
-      spawnSingleTarget();
+          floatingTexts.push({
+            x: headCenterX,
+            y: headCenterY - 25,
+            text: 'CRITICAL HEADSHOT! +200',
+            color: '#ff007f',
+            scale: 1.4,
+            alpha: 1.0,
+            vy: -1.5
+          });
 
-      connection.sendPlayerHit(playerId, 'head');
-      break;
+          connection.sendPlayerHit(playerId, 'head');
+          break;
+        }
+
+        // Check Body hit
+        const bodyCenterX = targetX + targetW / 2;
+        const bodyCenterY = targetY + targetH - targetH * 0.15;
+        const dxBody = Math.abs(ch.x - bodyCenterX);
+        const dyBody = Math.abs(ch.y - bodyCenterY);
+
+        if (dxBody < 30 && dyBody < 35) {
+          w.health -= 50;
+          w.flashTime = Date.now() + 150;
+
+          if (w.health <= 0) {
+            w.status = 'dead';
+            playHitSound('body');
+            spawnParticles(bodyCenterX, bodyCenterY, '#00f2fe', 20);
+
+            floatingTexts.push({
+              x: bodyCenterX,
+              y: bodyCenterY - 25,
+              text: 'ROBOT ELIMINATED! +100',
+              color: '#00f2fe',
+              scale: 1.1,
+              alpha: 1.0,
+              vy: -1.2
+            });
+
+            connection.sendPlayerHit(playerId, 'body');
+          } else {
+            playHitSound('body');
+            spawnParticles(bodyCenterX, bodyCenterY, 'rgba(255,255,255,0.8)', 8);
+
+            floatingTexts.push({
+              x: bodyCenterX,
+              y: bodyCenterY - 25,
+              text: 'TARGET HIT! 50%',
+              color: '#ff9f43',
+              scale: 0.9,
+              alpha: 1.0,
+              vy: -0.9
+            });
+          }
+          break;
+        }
+      }
     }
+  } else {
+    // Map 1: Cyber Canyon Targets Collision
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const target = targets[i];
+      const proj = project(target.x, target.y, target.z);
+      if (!proj) continue;
 
-    // Body dimensions with minimum hit tolerance (at least 25x35 pixels box check)
-    const bodyX = proj.x;
-    const bodyY = proj.y - 0.45 * proj.scale;
-    const bodyRadiusX = Math.max(0.25 * proj.scale, 25);
-    const bodyRadiusY = Math.max(0.35 * proj.scale, 35);
+      // Head dimensions
+      const hCenter = project(target.x, target.y - 0.95, target.z);
+      if (!hCenter) continue;
+      const headRad = 0.12 * hCenter.scale;
 
-    const normX = (ch.x - bodyX) / bodyRadiusX;
-    const normY = (ch.y - bodyY) / bodyRadiusY;
-    const insideBody = (normX * normX + normY * normY) <= 1.0;
+      // Check hit on head (1 shot kill!) with a minimum hit tolerance of 22 pixels
+      const dxHead = ch.x - hCenter.x;
+      const dyHead = ch.y - hCenter.y;
+      const distHead = Math.sqrt(dxHead * dxHead + dyHead * dyHead);
+      const headHitbox = Math.max(headRad, 22);
 
-    if (insideBody) {
-      // Body Hit: 50% damage
-      target.health -= 50;
-      target.flashTime = Date.now() + 150; // flash red helper
-
-      if (target.health <= 0) {
-        // Destroyed!
-        playHitSound('body');
-        spawnParticles(bodyX, bodyY, target.color, 20);
-
+      if (distHead < headHitbox) {
+        // Instant Headshot Kill!
+        playHitSound('head');
+        spawnParticles(hCenter.x, hCenter.y, '#ff007f', 28);
+        
         floatingTexts.push({
-          x: bodyX,
-          y: bodyY - 25,
-          text: 'ROBOT DESTROYED! +100',
-          color: '#00f2fe',
-          scale: 1.1,
+          x: hCenter.x,
+          y: hCenter.y - 25,
+          text: 'CRITICAL HEADSHOT! +200',
+          color: '#ff007f',
+          scale: 1.4,
           alpha: 1.0,
-          vy: -1.2
+          vy: -1.5
         });
 
         targets.splice(i, 1);
         spawnSingleTarget();
 
-        connection.sendPlayerHit(playerId, 'body');
-      } else {
-        // Shield damaged
-        playHitSound('body');
-        spawnParticles(bodyX, bodyY, 'rgba(255,255,255,0.8)', 8);
-
-        floatingTexts.push({
-          x: bodyX,
-          y: bodyY - 25,
-          text: 'SHIELD DAMAGED! 50%',
-          color: '#ff9f43',
-          scale: 0.9,
-          alpha: 1.0,
-          vy: -0.9
-        });
+        connection.sendPlayerHit(playerId, 'head');
+        break;
       }
-      break;
+
+      // Body dimensions with minimum hit tolerance (at least 25x35 pixels box check)
+      const bodyX = proj.x;
+      const bodyY = proj.y - 0.45 * proj.scale;
+      const bodyRadiusX = Math.max(0.25 * proj.scale, 25);
+      const bodyRadiusY = Math.max(0.35 * proj.scale, 35);
+
+      const normX = (ch.x - bodyX) / bodyRadiusX;
+      const normY = (ch.y - bodyY) / bodyRadiusY;
+      const insideBody = (normX * normX + normY * normY) <= 1.0;
+
+      if (insideBody) {
+        // Body Hit: 50% damage
+        target.health -= 50;
+        target.flashTime = Date.now() + 150; // flash red helper
+
+        if (target.health <= 0) {
+          // Destroyed!
+          playHitSound('body');
+          spawnParticles(bodyX, bodyY, target.color, 20);
+
+          floatingTexts.push({
+            x: bodyX,
+            y: bodyY - 25,
+            text: 'ROBOT DESTROYED! +100',
+            color: '#00f2fe',
+            scale: 1.1,
+            alpha: 1.0,
+            vy: -1.2
+          });
+
+          targets.splice(i, 1);
+          spawnSingleTarget();
+
+          connection.sendPlayerHit(playerId, 'body');
+        } else {
+          // Shield damaged
+          playHitSound('body');
+          spawnParticles(bodyX, bodyY, 'rgba(255,255,255,0.8)', 8);
+
+          floatingTexts.push({
+            x: bodyX,
+            y: bodyY - 25,
+            text: 'SHIELD DAMAGED! 50%',
+            color: '#ff9f43',
+            scale: 0.9,
+            alpha: 1.0,
+            vy: -0.9
+          });
+        }
+        break;
+      }
     }
   }
 }
@@ -1042,56 +1396,137 @@ function gameLoop(timestamp) {
   if (!isConnected || !gameStarted) return;
   requestAnimationFrame(gameLoop);
 
-  // 1. Curve Canyon Track Map bending transitions
-  curvePhase += 0.006;
-  targetCurve = Math.sin(curvePhase) * Math.cos(curvePhase * 0.6) * 1.6;
-  trackCurve += (targetCurve - trackCurve) * 0.015;
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+  const scopeRadius = Math.min(canvas.width, canvas.height) * 0.44;
 
-  // 2. Update positions (Interpolation smoothing) for all active players
+  // Map 2: Introduction presentation screen
+  if (activeMap === 2 && map2Stage === 'intro') {
+    ctx.fillStyle = '#05070f';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Watch scope border
+    ctx.strokeStyle = '#1b2234';
+    ctx.lineWidth = 12;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, scopeRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Watch face background
+    ctx.fillStyle = '#101421';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, scopeRadius - 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Poster Title
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 22px Orbitron';
+    ctx.textAlign = 'center';
+    ctx.fillText('TARGET #1', centerX, centerY - scopeRadius * 0.55);
+
+    // Draw the boss face
+    drawIntroBossFace(centerX, centerY, scopeRadius * 0.45);
+
+    // Prompt text
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.font = '700 13px Orbitron';
+    ctx.fillText('TAP TO CONTINUE', centerX, centerY + scopeRadius * 0.6);
+    
+    // Render connected players crosshairs so they can calibrate
+    playerManager.players.forEach(player => {
+      if (player.connected) {
+        drawCrosshair(player.crosshair);
+      }
+    });
+    return;
+  }
+
+  // 1. Update player crosshair smooth interpolations
   playerManager.players.forEach(player => {
     if (!player.connected) return;
     const ch = player.crosshair;
     ch.x += (ch.targetX - ch.x) * smoothing;
     ch.y += (ch.targetY - ch.y) * smoothing;
 
-    // Clamp coordinates within game viewport boundaries
     ch.x = Math.max(ch.radius, Math.min(canvas.width - ch.radius, ch.x));
     ch.y = Math.max(ch.radius, Math.min(canvas.height - ch.radius, ch.y));
 
-    // Decay shoot pulse animation scale
     if (ch.shootPulse > 0) {
       ch.shootPulse -= 0.1;
     }
   });
 
-  // Update target positions & fade-ins
-  const now = Date.now();
-  for (let i = targets.length - 1; i >= 0; i--) {
-    const target = targets[i];
-    
-    // Animate fade-in (suddenly appear!)
-    if (target.opacity < target.targetOpacity) {
-      target.opacity += 16.67 / targetFadeTime;
-      if (target.opacity > target.targetOpacity) target.opacity = target.targetOpacity;
+  // 2. Branch updates depending on active map
+  if (activeMap === 1) {
+    // Map 1: Canyon bending and robot tracking
+    curvePhase += 0.006;
+    targetCurve = Math.sin(curvePhase) * Math.cos(curvePhase * 0.6) * 1.6;
+    trackCurve += (targetCurve - trackCurve) * 0.015;
+
+    const now = Date.now();
+    for (let i = targets.length - 1; i >= 0; i--) {
+      const target = targets[i];
+      if (target.opacity < target.targetOpacity) {
+        target.opacity += 16.67 / targetFadeTime;
+        if (target.opacity > target.targetOpacity) target.opacity = target.targetOpacity;
+      }
+      if (target.lockRingProgress > 0) {
+        target.lockRingProgress -= 0.04;
+        if (target.lockRingProgress < 0) target.lockRingProgress = 0;
+      }
+      target.z -= mapSpeed;
+      if (target.z <= 0.5 || (now - target.spawnTime > target.lifespan)) {
+        targets.splice(i, 1);
+        spawnSingleTarget();
+      }
+    }
+  } else {
+    // Map 2: Window popups cycles
+    const activeWindowTargets = map2Windows.filter(w => w.active);
+    if (activeWindowTargets.length < maxTargets && Date.now() - lastMap2SpawnTime > 1500) {
+      const inactive = map2Windows.filter(w => !w.active);
+      if (inactive.length > 0) {
+        const selected = inactive[Math.floor(Math.random() * inactive.length)];
+        selected.active = true;
+        selected.status = 'rising';
+        selected.yOffset = 0;
+        selected.health = 100;
+        selected.color = Math.random() > 0.5 ? '#ff007f' : '#ff3333';
+        selected.lifeTimer = 0;
+        lastMap2SpawnTime = Date.now();
+      }
     }
 
-    // Shrink the locking warning ring
-    if (target.lockRingProgress > 0) {
-      target.lockRingProgress -= 0.04;
-      if (target.lockRingProgress < 0) target.lockRingProgress = 0;
-    }
-
-    // Move target slowly towards camera with map speed
-    target.z -= mapSpeed;
-
-    // Check if target is out of range or expired
-    if (target.z <= 0.5 || (now - target.spawnTime > target.lifespan)) {
-      targets.splice(i, 1);
-      spawnSingleTarget();
-    }
+    map2Windows.forEach(w => {
+      if (!w.active) return;
+      if (w.status === 'rising') {
+        w.yOffset += 0.05;
+        if (w.yOffset >= 1.0) {
+          w.yOffset = 1.0;
+          w.status = 'staying';
+          w.lifeTimer = Date.now() + 2500;
+        }
+      } else if (w.status === 'staying') {
+        if (Date.now() > w.lifeTimer) {
+          w.status = 'falling';
+        }
+      } else if (w.status === 'falling') {
+        w.yOffset -= 0.05;
+        if (w.yOffset <= 0) {
+          w.active = false;
+          w.status = 'inactive';
+        }
+      } else if (w.status === 'dead') {
+        w.yOffset -= 0.12;
+        if (w.yOffset <= 0) {
+          w.active = false;
+          w.status = 'inactive';
+        }
+      }
+    });
   }
 
-  // Update particle physics
+  // 3. Update particle/beams/flashes physics
   for (let i = particles.length - 1; i >= 0; i--) {
     const p = particles[i];
     p.x += p.vx;
@@ -1102,7 +1537,6 @@ function gameLoop(timestamp) {
     }
   }
 
-  // Update and fade visual laser trails
   for (let i = laserTrails.length - 1; i >= 0; i--) {
     const trail = laserTrails[i];
     trail.alpha -= 0.12;
@@ -1111,7 +1545,6 @@ function gameLoop(timestamp) {
     }
   }
 
-  // Update and fade muzzle flashes
   for (let i = muzzleFlashes.length - 1; i >= 0; i--) {
     const mf = muzzleFlashes[i];
     mf.radius += 3.5;
@@ -1121,22 +1554,77 @@ function gameLoop(timestamp) {
     }
   }
 
-  // 3. Draw canvas frames
+  // 4. Fill base frames
   ctx.fillStyle = '#05070f';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Draw 3D scrolling grid
-  drawGrid();
+  if (activeMap === 2) {
+    // Map 2: Draw Sniper Apartment clipped inside circular scope viewport
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, scopeRadius, 0, Math.PI * 2);
+    ctx.clip();
 
-  // Draw 3D side obstacles/towers
-  updateAndDrawTowers();
+    // Brick Wall
+    ctx.fillStyle = '#9e4629';
+    ctx.fillRect(centerX - scopeRadius, centerY - scopeRadius, scopeRadius * 2, scopeRadius * 2);
 
-  // Draw 3D walk-animated robot targets
-  targets.forEach((target) => {
-    drawWalkingRobot(target);
-  });
+    // Brick rows
+    ctx.strokeStyle = '#7c2f18';
+    ctx.lineWidth = 1.5;
+    for (let y = centerY - scopeRadius; y <= centerY + scopeRadius; y += 30) {
+      ctx.beginPath();
+      ctx.moveTo(centerX - scopeRadius, y);
+      ctx.lineTo(centerX + scopeRadius, y);
+      ctx.stroke();
+    }
 
-  // Draw particles
+    // Windows Grid
+    map2Windows.forEach(w => {
+      const wx = centerX + w.col * scopeRadius - (scopeRadius * 0.16);
+      const wy = centerY + w.row * scopeRadius - (scopeRadius * 0.14);
+      const ww = scopeRadius * 0.32;
+      const wh = scopeRadius * 0.28;
+
+      w.pixelX = wx;
+      w.pixelY = wy;
+      w.pixelW = ww;
+      w.pixelH = wh;
+
+      // Dark window pane interiors
+      ctx.strokeStyle = '#4a2511';
+      ctx.lineWidth = 4;
+      ctx.fillStyle = '#22252a';
+      ctx.fillRect(wx, wy, ww, wh);
+      ctx.strokeRect(wx, wy, ww, wh);
+
+      // Glass dividers
+      ctx.strokeStyle = '#4a2511';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(wx + ww / 2, wy);
+      ctx.lineTo(wx + ww / 2, wy + wh);
+      ctx.moveTo(wx, wy + wh / 2);
+      ctx.lineTo(wx + ww, wy + wh / 2);
+      ctx.stroke();
+
+      // Draw active sliding target
+      if (w.active) {
+        drawBaldTarget(wx, wy, ww, wh, w.yOffset, w.color, w.health);
+      }
+    });
+
+    ctx.restore();
+  } else {
+    // Map 1: Draw Cyber Canyon elements
+    drawGrid();
+    updateAndDrawTowers();
+    targets.forEach((target) => {
+      drawWalkingRobot(target);
+    });
+  }
+
+  // 5. Draw particles overlay
   particles.forEach((p) => {
     ctx.save();
     ctx.globalAlpha = p.alpha;
@@ -1211,6 +1699,11 @@ function gameLoop(timestamp) {
       ctx.fillText(ft.text, ft.x, ft.y);
       ctx.restore();
     }
+  }
+
+  // Draw sniper scope ticks and borders on Map 2
+  if (activeMap === 2) {
+    drawScopeOverlay(centerX, centerY, scopeRadius);
   }
 
   // Draw Crosshairs and charging indicators for all active players
@@ -1474,6 +1967,13 @@ function startGame() {
   maxTargets = LEVEL_CONFIGS[1].maxTargets;
   targetFadeTime = LEVEL_CONFIGS[1].fadeTime;
   floatingTexts = [];
+
+  // Reset Map 2 variables if active
+  if (activeMap === 2) {
+    map2Stage = 'intro';
+    initMap2Windows();
+    lastMap2SpawnTime = 0;
+  }
   
   const levelVal = document.getElementById('level-val');
   if (levelVal) {
@@ -1610,6 +2110,24 @@ if (playAgainBtn) {
 const returnLobbyBtn = document.getElementById('return-lobby-btn');
 if (returnLobbyBtn) {
   returnLobbyBtn.addEventListener('click', returnToLobby);
+}
+
+// Bind Map Buttons
+const mapBtn1 = document.getElementById('map-btn-1');
+const mapBtn2 = document.getElementById('map-btn-2');
+
+if (mapBtn1 && mapBtn2) {
+  mapBtn1.addEventListener('click', () => {
+    activeMap = 1;
+    mapBtn1.classList.add('active');
+    mapBtn2.classList.remove('active');
+  });
+
+  mapBtn2.addEventListener('click', () => {
+    activeMap = 2;
+    mapBtn1.classList.remove('active');
+    mapBtn2.classList.add('active');
+  });
 }
 
 connection.connect();

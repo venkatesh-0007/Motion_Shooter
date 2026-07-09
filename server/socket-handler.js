@@ -27,7 +27,7 @@ function notifyGameOfPlayerChange(session, controllerSocket, status) {
         sensitivity: settings.sensitivity !== undefined ? settings.sensitivity : 1.0,
         invertX: settings.invertX || false,
         invertY: settings.invertY || false,
-        currentWeapon: settings.currentWeapon || 'pistol',
+        currentWeapon: settings.currentWeapon || 'plasma',
         connected: status === 'connected',
         ready: false,
         orientation: { alpha: 0, beta: 0, gamma: 0 },
@@ -119,7 +119,24 @@ export function handleSocketConnection(ws) {
             if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
               gameSocket.send(JSON.stringify({ 
                 type: MSG_TYPES.SHOOT,
-                playerId: ws.controllerId
+                playerId: ws.controllerId,
+                payload: {
+                  isCharged: (message.payload && message.payload.isCharged) || false
+                }
+              }));
+            }
+          }
+          break;
+
+        case MSG_TYPES.CHARGE_UPDATE:
+          // Forward charge updates directly to the game client
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const gameSocket = sessions[ws.sessionId].gameSocket;
+            if (gameSocket && gameSocket.readyState === 1 /* OPEN */) {
+              gameSocket.send(JSON.stringify({
+                type: MSG_TYPES.CHARGE_UPDATE,
+                playerId: ws.controllerId,
+                payload: message.payload
               }));
             }
           }

@@ -212,6 +212,7 @@ export function handleSocketConnection(ws) {
           if (ws.sessionId && sessions[ws.sessionId]) {
             const session = sessions[ws.sessionId];
             const targetPlayerId = message.playerId;
+            const hitType = message.hitType || 'body';
             // Find target controller socket
             let targetSocket = null;
             session.controllers.forEach(controller => {
@@ -222,7 +223,8 @@ export function handleSocketConnection(ws) {
             
             if (targetSocket) {
               targetSocket.playerStats.hits = (targetSocket.playerStats.hits || 0) + 1;
-              targetSocket.playerStats.score = (targetSocket.playerStats.score || 0) + 100;
+              const points = hitType === 'head' ? 200 : 100;
+              targetSocket.playerStats.score = (targetSocket.playerStats.score || 0) + points;
               
               // Broadcast updated stats to game client
               if (session.gameSocket && session.gameSocket.readyState === 1 /* OPEN */) {

@@ -180,4 +180,8 @@ export class GameConnection {
   sendReturnToLobby() {
     this.send({ type: MSG_TYPES.RETURN_TO_LOBBY });
   }
+
+  sendGameEnded() {
+    this.send({ type: MSG_TYPES.GAME_ENDED });
+  }
 }

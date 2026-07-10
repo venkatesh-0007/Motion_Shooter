@@ -125,6 +125,12 @@ Choose your battleground directly from the mobile lobby. The computer screen upd
 
 Select your gun from the mobile controller dashboard. Active buttons display custom themed color glows:
 
+<div align="center">
+  <img src="media/weapon_loadout_animation.svg" width="100%" alt="Futuristic Weapon Firing Effects" />
+</div>
+
+<br>
+
 | Weapon | Fire Mode | Rate of Fire | Damage | 特 Special Ability (Charge Beam) | Active Theme |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Plasma Disrupter** | Semi-Auto | Medium | `50` | **Yes** (Hold to charge Mega-Beam) | Cyan Glow 🔵 |
@@ -136,6 +142,12 @@ Select your gun from the mobile controller dashboard. Active buttons display cus
 ## 📱 Mobile Controller Gestures & Interactions
 
 This game implements a **Mobile-First** layout—no laptop keyboard or mouse input required!
+
+<div align="center">
+  <img src="media/gyro_aiming_animation.svg" width="100%" alt="Gyro Sensor Aiming and Recenter Recalibration" />
+</div>
+
+<br>
 
 * **Aiming:** Physically tilt, turn, and point your phone to steer the crosshair.
 * **Shooting:** Tap the touchpad. Standard shots trigger a crisp **15ms haptic pulse vibration**.

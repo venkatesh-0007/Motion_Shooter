@@ -879,6 +879,13 @@ function handleStatusChange(state, gameState) {
     }
   }
 
+  // If the server tells us to return to the lobby (or state is lobby)
+  if (gameState === 'lobby') {
+    if (gameStarted || !document.getElementById('end-screen').classList.contains('hidden')) {
+      returnToLobby();
+    }
+  }
+
   // If we lost all connections mid-game, return to lobby
   if (!isConnected && gameStarted) {
     returnToLobby();
@@ -1884,7 +1891,13 @@ connection.onChargeUpdate = (playerId, charge) => {
 };
 
 connection.onStartGame = () => {
-  startGame();
+  if (!gameStarted) {
+    const endScreen = document.getElementById('end-screen');
+    if (endScreen && !endScreen.classList.contains('hidden')) {
+      playerManager.resetAllPlayerStats();
+    }
+    startGame();
+  }
 };
 
 // Lobby UI Sync
@@ -2077,6 +2090,9 @@ function endGame() {
   if (endScreen) {
     endScreen.classList.remove('hidden');
   }
+
+  // Notify server of game end state
+  connection.sendGameEnded();
 }
 
 function playAgain() {

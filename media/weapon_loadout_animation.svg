@@ -1,0 +1,125 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 120" width="100%" height="120" style="background: #070915; font-family: 'Orbitron', sans-serif; border-radius: 8px; border: 1px solid rgba(0, 242, 254, 0.15);">
+  <style>
+    /* Neon Glows */
+    .glow-cyan { filter: url(#glowC); }
+    .glow-pink { filter: url(#glowP); }
+    .glow-green { filter: url(#glowG); }
+
+    /* Plasma Orbit animation */
+    @keyframes orbit {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .plasma-ring {
+      transform-origin: 100px 60px;
+      animation: orbit 3s linear infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { r: 12px; opacity: 0.8; }
+      50% { r: 18px; opacity: 1; }
+    }
+    .plasma-center {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    /* Laser rapid flash animation */
+    @keyframes laserFlash {
+      0%, 100% { opacity: 0.2; transform: scaleX(0.1); }
+      50% { opacity: 1; transform: scaleX(1); }
+    }
+    .laser-beam-line {
+      transform-origin: 240px 60px;
+      animation: laserFlash 0.15s linear infinite;
+    }
+    @keyframes sparkFloat {
+      0% { transform: translate(360px, 60px) scale(1); opacity: 1; }
+      100% { transform: translate(380px, 45px) scale(0); opacity: 0; }
+    }
+    .laser-spark {
+      animation: sparkFloat 0.3s ease-out infinite;
+    }
+
+    /* Railgun charging loop */
+    @keyframes railgunCharge {
+      0%, 20% { width: 0px; opacity: 0.2; }
+      70% { width: 100px; opacity: 1; fill: #00ff66; }
+      75% { opacity: 0; width: 100px; }
+      100% { width: 0px; opacity: 0.2; }
+    }
+    .rail-bar {
+      animation: railgunCharge 2s infinite;
+    }
+    @keyframes railgunShot {
+      0%, 70% { transform: translateX(0px); opacity: 0; }
+      72% { transform: translateX(0px); opacity: 1; }
+      80% { transform: translateX(110px); opacity: 0; }
+      100% { transform: translateX(110px); opacity: 0; }
+    }
+    .rail-bolt {
+      animation: railgunShot 2s infinite;
+      fill: #00ff66;
+    }
+  </style>
+
+  <defs>
+    <filter id="glowC" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+    <filter id="glowP" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+    <filter id="glowG" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="3" result="blur" />
+      <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Weapons side-by-side blocks -->
+  <!-- Block 1: Plasma Disrupter -->
+  <g transform="translate(0, 0)">
+    <rect x="15" y="15" width="170" height="90" rx="6" fill="#0f1225" stroke="rgba(0, 242, 254, 0.15)" stroke-width="1" />
+    <text x="100" y="32" fill="#00f2fe" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1" class="glow-cyan">PLASMA DISRUPTER</text>
+    
+    <!-- Visual animation -->
+    <circle cx="100" cy="60" r="14" fill="rgba(0, 242, 254, 0.1)" stroke="#00f2fe" stroke-width="1.5" class="plasma-center glow-cyan" />
+    <g class="plasma-ring">
+      <circle cx="125" cy="60" r="3" fill="#ffffff" class="glow-cyan" />
+      <ellipse cx="100" cy="60" rx="25" ry="8" fill="none" stroke="rgba(0, 242, 254, 0.4)" stroke-width="1" />
+    </g>
+    <text x="100" y="93" fill="#7e8b9b" font-size="9" text-anchor="middle">SEMI-AUTO • CHARGEABLE</text>
+  </g>
+
+  <!-- Block 2: Laser Repeater -->
+  <g transform="translate(200, 0)">
+    <rect x="0" y="15" width="170" height="90" rx="6" fill="#0f1225" stroke="rgba(255, 0, 127, 0.15)" stroke-width="1" />
+    <text x="85" y="32" fill="#ff007f" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1" class="glow-pink">LASER REPEATER</text>
+    
+    <!-- Visual animation -->
+    <!-- Laser gun emitter -->
+    <rect x="25" y="57" width="20" height="6" fill="#303550" rx="1" />
+    <!-- Flashing beam -->
+    <line x1="45" y1="60" x2="145" y2="60" stroke="#ff007f" stroke-width="3" class="laser-beam-line glow-pink" />
+    <circle cx="145" cy="60" r="4" fill="#ffffff" class="glow-pink" />
+    <circle cx="130" cy="60" r="2" fill="#ff007f" class="laser-spark" />
+    <text x="85" y="93" fill="#7e8b9b" font-size="9" text-anchor="middle">AUTO-FIRE • RAPID</text>
+  </g>
+
+  <!-- Block 3: Quantum Railgun -->
+  <g transform="translate(400, 0)">
+    <rect x="-15" y="15" width="170" height="90" rx="6" fill="#0f1225" stroke="rgba(0, 255, 102, 0.15)" stroke-width="1" />
+    <text x="70" y="32" fill="#00ff66" font-size="11" font-weight="700" text-anchor="middle" letter-spacing="1" class="glow-green">QUANTUM RAILGUN</text>
+    
+    <!-- Visual animation -->
+    <!-- Charger bar background -->
+    <rect x="20" y="58" width="100" height="4" rx="2" fill="rgba(255,255,255,0.05)" />
+    <!-- Ticking green fill -->
+    <rect x="20" y="58" height="4" rx="2" fill="#00ff66" class="rail-bar glow-green" />
+    <!-- Shot Bolt -->
+    <g class="rail-bolt">
+      <polygon points="15,57 30,60 15,63" fill="#ffffff" class="glow-green" />
+    </g>
+    <text x="70" y="93" fill="#7e8b9b" font-size="9" text-anchor="middle">SEMI-AUTO • HIGH POWER</text>
+  </g>
+</svg>

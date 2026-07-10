@@ -2,6 +2,10 @@
 
 <div align="center">
 
+![Motion Shooter Arena Gameplay Loop](media/gameplay_animation.svg)
+
+<br>
+
 ![Version](https://img.shields.io/badge/version-2.1.0-cyan?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node.js-v16%2B-green?style=for-the-badge&logo=node.js)
 ![Platform](https://img.shields.io/badge/Platform-Web--App-orange?style=for-the-badge)

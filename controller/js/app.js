@@ -54,33 +54,47 @@ const joinSessionBtn = document.getElementById('join-session-btn');
  */
 function handleStatusChange(state, gameState, isHead) {
   const isConnectedVal = state === CONNECTION_STATES.CONNECTED;
+  const lobbyOverlay = document.getElementById('lobby-overlay');
+  const gameoverOverlay = document.getElementById('gameover-overlay');
 
   if (isConnectedVal) {
     isConnected = true;
     statusIndicator.textContent = 'Controller Connected ✅';
     statusIndicator.className = 'status connected';
     
-    // Toggle lobby screen overlay based on game status
-    const lobbyOverlay = document.getElementById('lobby-overlay');
-    if (lobbyOverlay) {
-      if (gameState === 'lobby') {
-        lobbyOverlay.classList.remove('hidden');
-        
-        // Show/hide start controls based on head status
-        const headControls = document.getElementById('lobby-head-controls');
-        const waitControls = document.getElementById('lobby-wait-controls');
-        if (headControls && waitControls) {
-          if (isHead) {
-            headControls.classList.remove('hidden');
-            waitControls.classList.add('hidden');
-          } else {
-            headControls.classList.add('hidden');
-            waitControls.classList.remove('hidden');
-          }
+    if (gameState === 'lobby') {
+      if (lobbyOverlay) lobbyOverlay.classList.remove('hidden');
+      if (gameoverOverlay) gameoverOverlay.classList.add('hidden');
+      
+      const headControls = document.getElementById('lobby-head-controls');
+      const waitControls = document.getElementById('lobby-wait-controls');
+      if (headControls && waitControls) {
+        if (isHead) {
+          headControls.classList.remove('hidden');
+          waitControls.classList.add('hidden');
+        } else {
+          headControls.classList.add('hidden');
+          waitControls.classList.remove('hidden');
         }
-      } else {
-        lobbyOverlay.classList.add('hidden');
       }
+    } else if (gameState === 'ended') {
+      if (lobbyOverlay) lobbyOverlay.classList.add('hidden');
+      if (gameoverOverlay) gameoverOverlay.classList.remove('hidden');
+      
+      const goHeadControls = document.getElementById('gameover-head-controls');
+      const goWaitControls = document.getElementById('gameover-wait-controls');
+      if (goHeadControls && goWaitControls) {
+        if (isHead) {
+          goHeadControls.classList.remove('hidden');
+          goWaitControls.classList.add('hidden');
+        } else {
+          goHeadControls.classList.add('hidden');
+          goWaitControls.classList.remove('hidden');
+        }
+      }
+    } else {
+      if (lobbyOverlay) lobbyOverlay.classList.add('hidden');
+      if (gameoverOverlay) gameoverOverlay.classList.add('hidden');
     }
   } else {
     isConnected = false;
@@ -88,11 +102,8 @@ function handleStatusChange(state, gameState, isHead) {
     statusIndicator.textContent = 'Waiting for game client...';
     statusIndicator.className = 'status waiting';
 
-    // Hide lobby overlay on disconnect
-    const lobbyOverlay = document.getElementById('lobby-overlay');
-    if (lobbyOverlay) {
-      lobbyOverlay.classList.add('hidden');
-    }
+    if (lobbyOverlay) lobbyOverlay.classList.add('hidden');
+    if (gameoverOverlay) gameoverOverlay.classList.add('hidden');
   }
 }
 
@@ -251,6 +262,11 @@ function selectWeapon(weaponName) {
 }
 
 function startCharging() {
+  const activeWeapon = WEAPONS[settings.currentWeapon || 'plasma'];
+  if (activeWeapon && activeWeapon.fireMode === 'auto') {
+    return;
+  }
+
   if (chargeTimer) clearInterval(chargeTimer);
   chargeProgress = 0;
   chargeStartTime = Date.now();
@@ -357,6 +373,10 @@ function stopFiring(e) {
 function fireSingleShot() {
   if (connection && isConnected) {
     connection.sendShoot();
+    
+    if (navigator.vibrate) {
+      navigator.vibrate(15);
+    }
     
     touchPad.classList.add('firing');
     setTimeout(() => {
@@ -784,6 +804,33 @@ function initSession() {
     shootBtn.addEventListener('mousedown', startFiring);
     shootBtn.addEventListener('mouseup', stopFiring);
     shootBtn.addEventListener('mouseleave', stopFiring);
+  }
+
+  // Bind Game Over Buttons
+  const mobilePlayAgainBtn = document.getElementById('mobile-play-again-btn');
+  if (mobilePlayAgainBtn) {
+    const handlePlayAgain = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (connection && isConnected) {
+        connection.sendStartGame();
+      }
+    };
+    mobilePlayAgainBtn.addEventListener('click', handlePlayAgain);
+    mobilePlayAgainBtn.addEventListener('touchstart', handlePlayAgain, { passive: false });
+  }
+
+  const mobileLobbyBtn = document.getElementById('mobile-lobby-btn');
+  if (mobileLobbyBtn) {
+    const handleLobbyReturn = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (connection && isConnected) {
+        connection.send({ type: MSG_TYPES.RETURN_TO_LOBBY });
+      }
+    };
+    mobileLobbyBtn.addEventListener('click', handleLobbyReturn);
+    mobileLobbyBtn.addEventListener('touchstart', handleLobbyReturn, { passive: false });
   }
 
   // Bind Global safety focus releases

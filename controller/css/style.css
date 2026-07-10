@@ -84,13 +84,19 @@ body {
   justify-content: center;
   position: relative;
   touch-action: none;
-  background: radial-gradient(circle at center, rgba(16, 24, 48, 1) 0%, rgba(7, 9, 21, 1) 100%);
-  transition: background-color 0.1s ease;
+  background: radial-gradient(circle at center, rgba(16, 24, 48, 0.95) 0%, rgba(7, 9, 21, 1) 100%),
+              linear-gradient(rgba(0, 242, 254, 0.02) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0, 242, 254, 0.02) 1px, transparent 1px);
+  background-size: 100% 100%, 25px 25px, 25px 25px;
+  transition: all 0.1s ease;
 }
 
 /* Flash effect on shot trigger */
 .touch-pad.firing {
-  background: radial-gradient(circle at center, rgba(255, 0, 127, 0.4) 0%, rgba(7, 9, 21, 1) 100%);
+  background: radial-gradient(circle at center, rgba(255, 0, 127, 0.35) 0%, rgba(7, 9, 21, 1) 100%),
+              linear-gradient(rgba(255, 0, 127, 0.04) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(255, 0, 127, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 25px 25px, 25px 25px;
 }
 
 .hud-center {
@@ -496,12 +502,28 @@ body {
   transform: scale(0.95);
 }
 
-.weapon-btn.active {
+.weapon-btn.active.plasma {
   color: var(--text-primary);
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(0, 242, 254, 0.05));
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.25), rgba(0, 242, 254, 0.05));
   border-color: var(--glow-cyan);
-  box-shadow: 0 0 12px rgba(0, 242, 254, 0.4), inset 0 0 6px rgba(0, 242, 254, 0.2);
-  text-shadow: 0 0 8px rgba(0, 242, 254, 0.6);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.5), inset 0 0 8px rgba(0, 242, 254, 0.3);
+  text-shadow: 0 0 8px rgba(0, 242, 254, 0.8);
+}
+
+.weapon-btn.active.laser {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(255, 0, 127, 0.25), rgba(255, 0, 127, 0.05));
+  border-color: var(--glow-pink);
+  box-shadow: 0 0 15px rgba(255, 0, 127, 0.5), inset 0 0 8px rgba(255, 0, 127, 0.3);
+  text-shadow: 0 0 8px rgba(255, 0, 127, 0.8);
+}
+
+.weapon-btn.active.railgun {
+  color: var(--text-primary);
+  background: linear-gradient(135deg, rgba(0, 255, 102, 0.25), rgba(0, 255, 102, 0.05));
+  border-color: #00ff66;
+  box-shadow: 0 0 15px rgba(0, 255, 102, 0.5), inset 0 0 8px rgba(0, 255, 102, 0.3);
+  text-shadow: 0 0 8px rgba(0, 255, 102, 0.8);
 }
 
 /* Shoot Button Styles */

@@ -13,85 +13,135 @@
       animation: scrollGrid 1.5s linear infinite;
     }
     
-    /* Target popups */
-    @keyframes targetMove {
-      0%, 100% { transform: translateY(120px) scale(0.8); opacity: 0; }
-      15%, 45% { transform: translateY(0) scale(1); opacity: 1; }
-      55%, 85% { transform: translateY(-10px) translateX(30px) scale(0.9); opacity: 1; }
+    /* Target popups (Map 2 sliding logic) */
+    @keyframes target1Pop {
+      0%, 15% { transform: translate(150px, 180px); opacity: 0; } /* down */
+      20%, 35% { transform: translate(150px, 95px); opacity: 1; }  /* up */
+      40%, 100% { transform: translate(150px, 180px); opacity: 0; } /* down */
     }
-    .target-zombie {
-      animation: targetMove 6s ease-in-out infinite;
+    @keyframes target2Pop {
+      0%, 35% { transform: translate(380px, 180px); opacity: 0; } /* down */
+      40%, 55% { transform: translate(380px, 60px); opacity: 1; }  /* up */
+      60%, 100% { transform: translate(380px, 180px); opacity: 0; } /* down */
     }
-    .target-2 {
-      animation: targetMove 6s ease-in-out infinite;
-      animation-delay: 2s;
-    }
-    .target-3 {
-      animation: targetMove 6s ease-in-out infinite;
-      animation-delay: 4s;
+    @keyframes target3Pop {
+      0%, 55% { transform: translate(520px, 180px); opacity: 0; } /* down */
+      60%, 80% { transform: translate(520px, 115px); opacity: 1; }  /* up */
+      85%, 100% { transform: translate(520px, 180px); opacity: 0; } /* down */
     }
     
-    /* Aiming crosshair */
+    .target-zombie { animation: target1Pop 10s infinite; }
+    .target-2 { animation: target2Pop 10s infinite; }
+    .target-3 { animation: target3Pop 10s infinite; }
+    
+    /* Synchronized Crosshair Aiming Path (10s timeline) */
     @keyframes crosshairAim {
-      0% { transform: translate(150px, 120px); }
-      20% { transform: translate(380px, 80px); }
-      40% { transform: translate(520px, 140px); }
-      60% { transform: translate(320px, 200px); }
-      80% { transform: translate(440px, 100px); }
-      100% { transform: translate(150px, 120px); }
+      0%, 15% { transform: translate(400px, 175px); } /* center lobby/start */
+      25%, 30% { transform: translate(150px, 95px); }  /* Target 1 */
+      45%, 50% { transform: translate(380px, 60px); }  /* Target 2 */
+      65%, 70% { transform: translate(520px, 115px); } /* Target 3 */
+      80%, 90% { transform: translate(380px, 60px); }  /* Target 2 (Charged Mega Shot) */
+      95%, 100% { transform: translate(400px, 175px); }
     }
     .crosshair-group {
-      animation: crosshairAim 10s ease-in-out infinite;
+      animation: crosshairAim 10s infinite;
     }
     
-    /* Laser beam shots synchronized with aiming crosshair */
-    @keyframes laserShot {
-      0%, 18%, 22%, 38%, 42%, 58%, 62%, 78%, 82%, 100% { opacity: 0; stroke-width: 0; }
-      20%, 40%, 60%, 80% { opacity: 1; stroke-width: 4; }
+    /* Synchronized Laser Beam Firing Shots */
+    @keyframes laserShot1 {
+      0%, 27% { opacity: 0; stroke-width: 0; }
+      28% { opacity: 1; stroke-width: 4; }
+      29%, 100% { opacity: 0; stroke-width: 0; }
     }
-    .laser-beam {
+    @keyframes laserShot2 {
+      0%, 47% { opacity: 0; stroke-width: 0; }
+      48% { opacity: 1; stroke-width: 4; }
+      49%, 100% { opacity: 0; stroke-width: 0; }
+    }
+    @keyframes laserShot3 {
+      0%, 67% { opacity: 0; stroke-width: 0; }
+      68% { opacity: 1; stroke-width: 4; }
+      69%, 100% { opacity: 0; stroke-width: 0; }
+    }
+    .laser-beam-1 { stroke: #00f2fe; animation: laserShot1 10s infinite; }
+    .laser-beam-2 { stroke: #ff007f; animation: laserShot2 10s infinite; }
+    .laser-beam-3 { stroke: #00ff66; animation: laserShot3 10s infinite; }
+    
+    /* Hit impacts */
+    @keyframes hitFlash1 {
+      0%, 27% { opacity: 0; transform: translate(150px, 95px) scale(0); }
+      28%, 32% { opacity: 1; transform: translate(150px, 95px) scale(1.3); }
+      33%, 100% { opacity: 0; transform: translate(150px, 95px) scale(0); }
+    }
+    @keyframes hitFlash2 {
+      0%, 47% { opacity: 0; transform: translate(380px, 60px) scale(0); }
+      48%, 52% { opacity: 1; transform: translate(380px, 60px) scale(1.3); }
+      53%, 100% { opacity: 0; transform: translate(380px, 60px) scale(0); }
+    }
+    @keyframes hitFlash3 {
+      0%, 67% { opacity: 0; transform: translate(520px, 115px) scale(0); }
+      68%, 72% { opacity: 1; transform: translate(520px, 115px) scale(1.3); }
+      73%, 100% { opacity: 0; transform: translate(520px, 115px) scale(0); }
+    }
+    .hit-1 { fill: #00f2fe; animation: hitFlash1 10s infinite; }
+    .hit-2 { fill: #ff007f; animation: hitFlash2 10s infinite; }
+    .hit-3 { fill: #00ff66; animation: hitFlash3 10s infinite; }
+
+    /* Mega-Blast explosion timeline (starts at 88%) */
+    @keyframes megaExplode {
+      0%, 87% { opacity: 0; transform: translate(380px, 60px) scale(0); }
+      88% { opacity: 1; transform: translate(380px, 60px) scale(1); }
+      92% { opacity: 0.8; transform: translate(380px, 60px) scale(8); }
+      95%, 100% { opacity: 0; transform: translate(380px, 60px) scale(0); }
+    }
+    .mega-blast-circle {
+      fill: none;
       stroke: #ff007f;
-      animation: laserShot 10s ease-in-out infinite;
-    }
-    
-    /* Hitting flashes */
-    @keyframes hitFlash {
-      0%, 19%, 21%, 39%, 41%, 59%, 61%, 79%, 81%, 100% { opacity: 0; transform: scale(0); }
-      20%, 40%, 60%, 80% { opacity: 1; transform: scale(1.5); }
-    }
-    .hit-impact {
-      fill: #00ff66;
-      animation: hitFlash 10s ease-in-out infinite;
+      stroke-width: 3;
+      animation: megaExplode 10s infinite;
     }
 
-    /* Mega Blast wave */
-    @keyframes blastWave {
-      0%, 48% { r: 0; opacity: 0; }
-      50% { r: 10px; opacity: 1; }
-      53% { r: 90px; opacity: 0.8; }
-      55% { r: 130px; opacity: 0; }
-      100% { r: 0; opacity: 0; }
+    /* Scoreboard updates */
+    @keyframes scoreGlow1 {
+      0%, 27% { opacity: 1; }
+      28%, 100% { opacity: 0; }
     }
-    .blast-wave-circle {
-      animation: blastWave 10s ease-in-out infinite;
+    @keyframes scoreGlow2 {
+      0%, 27% { opacity: 0; }
+      28%, 47% { opacity: 1; }
+      48%, 100% { opacity: 0; }
+    }
+    @keyframes scoreGlow3 {
+      0%, 47% { opacity: 0; }
+      48%, 67% { opacity: 1; }
+      68%, 100% { opacity: 0; }
+    }
+    @keyframes scoreGlow4 {
+      0%, 67% { opacity: 0; }
+      68%, 87% { opacity: 1; }
+      88%, 100% { opacity: 0; }
+    }
+    @keyframes scoreGlow5 {
+      0%, 87% { opacity: 0; }
+      88%, 100% { opacity: 1; }
     }
 
-    /* Scoreboard ticker */
-    @keyframes scoreTicker {
-      0% { content: "02300"; }
-      21% { content: "02400"; }
-      41% { content: "02600"; }
-      51% { content: "02900"; }
-      61% { content: "03000"; }
-      81% { content: "03200"; }
+    .score-txt-1 { animation: scoreGlow1 10s infinite; }
+    .score-txt-2 { animation: scoreGlow2 10s infinite; }
+    .score-txt-3 { animation: scoreGlow3 10s infinite; }
+    .score-txt-4 { animation: scoreGlow4 10s infinite; }
+    .score-txt-5 { animation: scoreGlow5 10s infinite; }
+
+    /* Charge bar (charging for the mega shot at 75% to 87%) */
+    @keyframes chargeProgressRun {
+      0%, 72% { width: 0px; opacity: 0; }
+      73% { opacity: 1; }
+      87% { width: 210px; opacity: 1; }
+      88%, 100% { width: 0px; opacity: 0; }
     }
-    .score-val::after {
-      content: "02300";
-      animation: scoreTicker 10s steps(1) infinite;
-    }
+    .charge-rect { animation: chargeProgressRun 10s infinite; fill: url(#chargeGlow); }
   </style>
 
-  <!-- Definitions -->
   <defs>
     <!-- Background grid gradient -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -103,7 +153,7 @@
     <!-- Charge bar gradient -->
     <linearGradient id="chargeGlow" x1="0%" y1="0%" x2="100%" y2="0%">
       <stop offset="0%" stop-color="#ff007f" />
-      <stop offset="100%" stop-color="#00ff66" />
+      <stop offset="100%" stop-color="#00f2fe" />
     </linearGradient>
     
     <!-- Neon glows -->
@@ -133,17 +183,14 @@
   <!-- Background Base -->
   <rect width="800" height="350" fill="url(#bgGrad)" />
 
-  <!-- Canyon Grid Background -->
-  <g opacity="0.4">
-    <!-- Perspective lines -->
+  <!-- Perspective grid lines -->
+  <g opacity="0.3">
     <line x1="400" y1="120" x2="-200" y2="350" class="grid-lines" />
     <line x1="400" y1="120" x2="100" y2="350" class="grid-lines" />
     <line x1="400" y1="120" x2="400" y2="350" class="grid-lines" />
     <line x1="400" y1="120" x2="700" y2="350" class="grid-lines" />
     <line x1="400" y1="120" x2="1000" y2="350" class="grid-lines" />
-    
-    <!-- Horizon -->
-    <line x1="0" y1="120" x2="800" y2="120" stroke="#00f2fe" stroke-width="2" opacity="0.6" filter="url(#glowCyan)" />
+    <line x1="0" y1="120" x2="800" y2="120" stroke="#00f2fe" stroke-width="2" filter="url(#glowCyan)" opacity="0.6" />
 
     <!-- Animated scrolling floor grid -->
     <g class="grid-floor">
@@ -156,102 +203,93 @@
     </g>
   </g>
 
-  <!-- Targets (Zombies / Robots) popping/moving -->
+  <!-- Targets -->
   <!-- Target 1 (Robot) -->
-  <g class="target-zombie" transform="translate(150, 100)">
-    <rect x="-20" y="-30" width="40" height="60" rx="6" fill="#1b223c" stroke="#00f2fe" stroke-width="2" filter="url(#glowCyan)" />
-    <!-- Visor -->
-    <rect x="-12" y="-18" width="24" height="6" fill="#ff007f" filter="url(#glowPink)" />
-    <!-- Joints -->
-    <circle cx="-10" cy="18" r="4" fill="#00f2fe" />
-    <circle cx="10" cy="18" r="4" fill="#00f2fe" />
+  <g class="target-zombie">
+    <rect x="-18" y="-28" width="36" height="56" rx="6" fill="#1b223c" stroke="#00f2fe" stroke-width="2" filter="url(#glowCyan)" />
+    <rect x="-10" y="-18" width="20" height="5" fill="#ff007f" filter="url(#glowPink)" />
+    <circle cx="-8" cy="16" r="3" fill="#00f2fe" />
+    <circle cx="8" cy="16" r="3" fill="#00f2fe" />
   </g>
 
-  <!-- Target 2 (Window Target) -->
-  <g class="target-2" transform="translate(380, 60)">
-    <!-- Boss character Face outline -->
+  <!-- Target 2 (Boss face popping) -->
+  <g class="target-2">
     <rect x="-18" y="-25" width="36" height="50" rx="8" fill="#1b223c" stroke="#ff007f" stroke-width="2" filter="url(#glowPink)" />
-    <circle cx="0" cy="-6" r="10" fill="#fbc3a8" /> <!-- head -->
-    <rect x="-12" y="8" width="24" height="15" fill="#f368e0" /> <!-- pink shirt -->
-    <!-- Sunglasses -->
-    <rect x="-7" y="-8" width="6" height="4" rx="1" fill="#000" />
-    <rect x="1" y="-8" width="6" height="4" rx="1" fill="#000" />
-    <line x1="-1" y1="-6" x2="1" y2="-6" stroke="#000" />
+    <circle cx="0" cy="-6" r="10" fill="#fbc3a8" />
+    <rect x="-12" y="8" width="24" height="15" fill="#e056fd" />
+    <rect x="-7" y="-8" width="5" height="3" rx="1" fill="#000" />
+    <rect x="2" y="-8" width="5" height="3" rx="1" fill="#000" />
   </g>
 
-  <!-- Target 3 (Robot Variant) -->
-  <g class="target-3" transform="translate(520, 120)">
-    <polygon points="0,-28 22,10 -22,10" fill="#222b45" stroke="#00ff66" stroke-width="2" filter="url(#glowGreen)" />
-    <circle cx="0" cy="-5" r="5" fill="#00ff66" filter="url(#glowGreen)" />
+  <!-- Target 3 (Drone target) -->
+  <g class="target-3">
+    <polygon points="0,-25 20,10 -20,10" fill="#222b45" stroke="#00ff66" stroke-width="2" filter="url(#glowGreen)" />
+    <circle cx="0" cy="-5" r="4" fill="#00ff66" filter="url(#glowGreen)" />
   </g>
 
-  <!-- Laser Beams -->
-  <!-- Laser to Target 1 -->
-  <line x1="400" y1="350" x2="150" y2="120" class="laser-beam" style="animation-delay: 0s;" />
-  <circle cx="150" cy="120" r="15" class="hit-impact" style="animation-delay: 0s;" />
+  <!-- Lasers (Drawing from mobile origin bottom center) -->
+  <line x1="400" y1="350" x2="150" y2="95" class="laser-beam-1" />
+  <line x1="400" y1="350" x2="380" y2="60" class="laser-beam-2" />
+  <line x1="400" y1="350" x2="520" y2="115" class="laser-beam-3" />
 
-  <!-- Laser to Target 2 -->
-  <line x1="400" y1="350" x2="380" y2="80" class="laser-beam" stroke="#00f2fe" style="animation-delay: 2s;" />
-  <circle cx="380" cy="80" r="15" class="hit-impact" style="animation-delay: 2s;" />
+  <!-- Laser Impact Flashes -->
+  <g class="hit-1"><circle cx="0" cy="0" r="10" filter="url(#glowCyan)" /></g>
+  <g class="hit-2"><circle cx="0" cy="0" r="10" filter="url(#glowPink)" /></g>
+  <g class="hit-3"><circle cx="0" cy="0" r="10" filter="url(#glowGreen)" /></g>
 
-  <!-- Mega Blast Wave on Target 2 -->
-  <circle cx="320" cy="200" r="0" fill="none" stroke="#00ff66" stroke-width="4" filter="url(#glowGreen)" class="blast-wave-circle" />
+  <!-- Mega Blast Wave -->
+  <g class="mega-blast-circle">
+    <circle cx="0" cy="0" r="15" />
+  </g>
 
-  <!-- Laser to Target 3 -->
-  <line x1="400" y1="350" x2="520" y2="140" class="laser-beam" style="animation-delay: 4s;" />
-  <circle cx="520" cy="140" r="15" class="hit-impact" style="animation-delay: 4s;" />
-
-  <!-- Recenter line calibration trace -->
+  <!-- Calibration Center cross lines -->
   <line x1="400" y1="0" x2="400" y2="350" stroke="rgba(255, 255, 255, 0.05)" stroke-dasharray="5 5" />
   <line x1="0" y1="175" x2="800" y2="175" stroke="rgba(255, 255, 255, 0.05)" stroke-dasharray="5 5" />
 
-  <!-- Aiming Reticle (Crosshair) -->
+  <!-- Crosshair Reticle -->
   <g class="crosshair-group">
-    <!-- Outer bracket glow -->
-    <circle cx="0" cy="0" r="24" fill="none" stroke="#00f2fe" stroke-width="1.5" stroke-dasharray="10 5" filter="url(#glowCyan)" />
-    <!-- Inner ring -->
-    <circle cx="0" cy="0" r="12" fill="none" stroke="#ff007f" stroke-width="2" opacity="0.8" filter="url(#glowPink)" />
-    <!-- Center Dot -->
-    <circle cx="0" cy="0" r="3" fill="#ffffff" />
-    <!-- Pointer ticks -->
-    <line x1="0" y1="-28" x2="0" y2="-18" stroke="#00f2fe" stroke-width="2" />
-    <line x1="0" y1="18" x2="0" y2="28" stroke="#00f2fe" stroke-width="2" />
-    <line x1="-28" y1="0" x2="-18" y2="0" stroke="#00f2fe" stroke-width="2" />
-    <line x1="18" y1="0" x2="28" y2="0" stroke="#00f2fe" stroke-width="2" />
+    <circle cx="0" cy="0" r="22" fill="none" stroke="#00f2fe" stroke-width="1.5" stroke-dasharray="8 4" filter="url(#glowCyan)" />
+    <circle cx="0" cy="0" r="10" fill="none" stroke="#ff007f" stroke-width="2" opacity="0.8" filter="url(#glowPink)" />
+    <circle cx="0" cy="0" r="2.5" fill="#ffffff" />
+    <line x1="0" y1="-26" x2="0" y2="-16" stroke="#00f2fe" stroke-width="2" />
+    <line x1="0" y1="16" x2="0" y2="26" stroke="#00f2fe" stroke-width="2" />
+    <line x1="-26" y1="0" x2="-16" y2="0" stroke="#00f2fe" stroke-width="2" />
+    <line x1="16" y1="0" x2="26" y2="0" stroke="#00f2fe" stroke-width="2" />
   </g>
 
-  <!-- HUD Interface frame overlays -->
-  <!-- Top Bar -->
+  <!-- Top HUD Bar -->
   <rect x="15" y="15" width="770" height="40" rx="5" fill="rgba(11, 13, 25, 0.85)" stroke="rgba(0, 242, 254, 0.25)" stroke-width="1.5" />
-  
-  <!-- Left Side: Status -->
-  <text x="35" y="40" fill="#00f2fe" font-size="12" font-weight="700" letter-spacing="1">ARENA: ONLINE</text>
-  <circle cx="160" cy="36" r="5" fill="#00ff66" />
-  
-  <!-- Right Side: Active Weapon Display -->
+  <text x="35" y="40" fill="#00f2fe" font-size="12" font-weight="700" letter-spacing="1">ARENA: ACTIVE</text>
+  <circle cx="160" cy="35" r="5" fill="#00ff66" />
   <text x="530" y="40" fill="#7e8b9b" font-size="12" font-weight="500">WEAPON:</text>
   <text x="600" y="40" fill="#ff007f" font-size="12" font-weight="700" letter-spacing="1" filter="url(#glowPink)">PLASMA DISRUPTER</text>
 
-  <!-- Score Display -->
+  <!-- Scoreboard -->
   <rect x="330" y="10" width="140" height="50" rx="8" fill="#070915" stroke="#ff007f" stroke-width="2" filter="url(#glowPink)" />
-  <text x="400" y="30" fill="#7e8b9b" font-size="10" text-anchor="middle" font-weight="700">SCORE</text>
-  <text x="400" y="50" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-val" />
-
-  <!-- Bottom Left: Pairing Indicator -->
-  <g transform="translate(15, 305)">
-    <rect width="180" height="30" rx="4" fill="rgba(11, 13, 25, 0.9)" stroke="rgba(0, 242, 254, 0.2)" stroke-width="1" />
-    <text x="15" y="19" fill="#00f2fe" font-size="10" font-weight="700">PAIRING CODE: 938-122</text>
+  <text x="400" y="26" fill="#7e8b9b" font-size="10" text-anchor="middle" font-weight="700">SCORE</text>
+  
+  <!-- Score Overlap Opacities (Cross-browser safe value swaps) -->
+  <g>
+    <text x="400" y="48" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-txt-1">01500</text>
+    <text x="400" y="48" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-txt-2">01700</text>
+    <text x="400" y="48" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-txt-3">01900</text>
+    <text x="400" y="48" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-txt-4">02100</text>
+    <text x="400" y="48" fill="#ffffff" font-size="18" font-weight="700" text-anchor="middle" letter-spacing="2" class="score-txt-5">02300</text>
   </g>
 
-  <!-- Bottom Right: Charge bar -->
+  <!-- Bottom HUD bars -->
+  <!-- Left Side pairing info -->
+  <g transform="translate(15, 305)">
+    <rect width="180" height="30" rx="4" fill="rgba(11, 13, 25, 0.9)" stroke="rgba(0, 242, 254, 0.2)" stroke-width="1" />
+    <text x="15" y="19" fill="#00f2fe" font-size="10" font-weight="700">PAIRING: CONNECTED ✅</text>
+  </g>
+
+  <!-- Right Side Charge Bar -->
   <g transform="translate(565, 305)">
     <rect width="220" height="30" rx="4" fill="rgba(11, 13, 25, 0.9)" stroke="rgba(255, 0, 127, 0.2)" stroke-width="1" />
-    <!-- Ticking Charge -->
     <rect x="5" y="5" width="210" height="20" fill="rgba(255, 0, 127, 0.1)" />
-    <!-- Scanning charging glow -->
-    <rect x="5" y="5" width="130" height="20" fill="url(#chargeGlow)">
-      <animate attributeName="width" values="0;210;0" dur="4s" repeatCount="indefinite" />
-    </rect>
-    <text x="110" y="19" fill="#ffffff" font-size="9" font-weight="700" text-anchor="middle" letter-spacing="0.5">CHARGE PROGRESS</text>
+    <!-- Ticking fill -->
+    <rect x="5" y="5" height="20" rx="2" class="charge-rect" />
+    <text x="110" y="18" fill="#ffffff" font-size="9" font-weight="700" text-anchor="middle" letter-spacing="0.5">CHARGE PROGRESS</text>
   </g>
 </svg>

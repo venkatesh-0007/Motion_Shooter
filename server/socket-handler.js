@@ -311,6 +311,14 @@ export function handleSocketConnection(ws) {
           }
           break;
 
+        case MSG_TYPES.GAME_ENDED:
+          if (ws.sessionId && sessions[ws.sessionId]) {
+            const session = sessions[ws.sessionId];
+            session.state = 'ended';
+            sendStatusUpdates(session);
+          }
+          break;
+
         default:
           console.warn('Unknown WebSocket message type:', message.type);
       }
